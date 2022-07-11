@@ -1,0 +1,54 @@
+;; NFT marketplace smart contract
+
+;; storage scheme
+;; storage#_ owner_address:MsgAddress
+;;           = Storage;
+
+(slice) load_data() inline {
+  var ds = get_data().begin_parse();
+  return
+    (ds~load_msg_addr() ;; owner
+     );
+}
+
+() save_data(slice owner_address) impure inline {
+  set_data(begin_cell()
+    .store_slice(owner_address)
+    .end_cell());
+}
+
+() recv_internal(int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { ;; ignore empty messages
+        return ();
+    }
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+
+    if (flags & 1) {  ;; ignore all bounced messages
+        return ();
+    }
+    slice sender_address = cs~load_msg_addr();
+
+    var (owner_address) = load_data();
+    throw_unless(401, equal_slices(sender_address, owner_address));
+    int op = in_msg_body~load_uint(32);
+
+    if (op == 1) { ;; deploy new auction
+      int amount = in_msg_body~load_coins();
+      (cell state_init, cell body) = (cs~load_ref(), cs~load_ref());
+      int state_init_hash = cell_hash(state_init);
+      slice dest_address = begin_cell().store_int(0, 8).store_uint(state_init_hash, 256).end_cell().begin_parse();
+
+      var msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_uint(4, 3).store_slice(dest_address)
+        .store_grams(amount)
+        .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+        .store_ref(state_init)
+        .store_ref(body);
+      send_raw_message(msg.end_cell(), 1); ;; paying fees, revert on errors
+    }
+}
+
+() recv_external(slice in_msg) impure {
+}
