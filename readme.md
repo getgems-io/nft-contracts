@@ -42,3 +42,59 @@ After that SBT will send transfer to `dest` with scheme:
 verify_ownership#5d795580 query_id:uint64 sbt_id:uint256 owner:MsgAddress data:(Either Cell ^Cell)
 ```
 If something goes wrong and target contract not accepts message and it will be bounced back to SBT, SBT will proxy this bounce to owner, this way coins will not stuck on SBT.
+
+#### Verify SBT contract example
+
+```C
+int op::verify_ownership() asm "0x5d795580 PUSHINT";
+
+int equal_slices (slice a, slice b) asm "SDEQ";
+
+_ load_data() {
+    slice ds = get_data().begin_parse();
+
+    return (
+        ds~load_msg_addr(),    ;; collection_addr
+        ds~load_ref()          ;; sbt_code
+    );
+}
+
+slice calculate_sbt_address(slice collection_addr, cell sbt_item_code, int wc, int index) {
+  cell data = begin_cell().store_uint(index, 64).store_slice(collection_addr).end_cell();
+  cell state_init = begin_cell().store_uint(0, 2).store_dict(sbt_item_code).store_dict(data).store_uint(0, 1).end_cell();
+
+  return begin_cell().store_uint(4, 3)
+                     .store_int(wc, 8)
+                     .store_uint(cell_hash(state_init), 256)
+                     .end_cell()
+                     .begin_parse();
+}
+
+
+() recv_internal(int balance, int msg_value, cell in_msg_full, slice in_msg) impure {
+  slice cs = in_msg_full.begin_parse();
+  int flags = cs~load_uint(4);
+
+  slice sender_address = cs~load_msg_addr();
+
+  int op = in_msg~load_uint(32);
+  int query_id = in_msg~load_uint(64);
+
+  if (op == op::verify_ownership()) {
+    int id = in_msg~load_uint(256);
+
+    (slice collection_addr, cell sbt_code) = load_data();
+    throw_unless(403, equal_slices(sender_address, collection_addr.calculate_sbt_address(sbt_code, 0, id)));
+
+    slice owner_addr = in_msg~load_msg_addr();
+
+    ;;
+    ;; sbt verified, do something
+    ;;
+
+    return ();
+  }
+
+  throw(0xffff);
+}
+```
