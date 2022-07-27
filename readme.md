@@ -18,7 +18,10 @@ For this it stores immutable public key of the owner, and to change owner's addr
 #### Changing owner's address
 If you migrated to newer version of wallet and you want to move your SBT to it, you could send transfer to SBT from new wallet with payload:
 ```
-pull_ownership#2ad91252 query_id:uint64 signature:^(signature:(bits 512)) sbt_seqno:uint32 new_owner:MsgAddress response_destination:MsgAddress custom_payload:(Maybe ^Cell) forward_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell) = InternalMsgBody
+pull_ownership#2ad91252 query_id:uint64 signature:^(signature:(bits 512)) 
+sbt_seqno:uint32 new_owner:MsgAddress response_destination:MsgAddress 
+custom_payload:(Maybe ^Cell) forward_amount:(VarUInteger 16) 
+forward_payload:(Either Cell ^Cell) = InternalMsgBody
 ```
 1. To do it you first need to know current SBT's seqno, you can trigger `seqno` method of SBT contract to get it.
 2. `new_owner` should equals your wallet from which you sends message.
@@ -35,11 +38,13 @@ this way target contract could know that you are owner of SBT which relates to e
 
 To use this functionality SBT owner's wallet can send transfer with this scheme to SBT:
 ```
-prove_ownership#2e0de890 query_id:uint64 dest:MsgAddress data:(Either Cell ^Cell)
+prove_ownership#2e0de890 query_id:uint64 dest:MsgAddress 
+data:(Either Cell ^Cell)
 ```
 After that SBT will send transfer to `dest` with scheme:
 ```
-verify_ownership#5d795580 query_id:uint64 sbt_id:uint256 owner:MsgAddress data:(Either Cell ^Cell)
+verify_ownership#5d795580 query_id:uint64 sbt_id:uint256 
+owner:MsgAddress data:(Either Cell ^Cell)
 ```
 If something goes wrong and target contract not accepts message and it will be bounced back to SBT, SBT will proxy this bounce to owner, this way coins will not stuck on SBT.
 
