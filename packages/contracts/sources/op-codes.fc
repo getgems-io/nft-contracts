@@ -10,3 +10,8 @@ int op::report_royalty_params() asm "0xa8cb00ad PUSHINT";
 int op::edit_content() asm "0x1a0b9d51 PUSHINT";
 int op::transfer_editorship() asm "0x1c04412a PUSHINT";
 int op::editorship_assigned() asm "0x511a4463 PUSHINT";
+
+;; SBT
+int op::pull_ownership() asm "0x2ad91252 PUSHINT";
+int op::verify_ownership() asm "0x5d795580 PUSHINT";
+int op::prove_ownership() asm "0x2e0de890 PUSHINT";

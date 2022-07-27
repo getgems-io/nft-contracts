@@ -4,3 +4,8 @@ int workchain() asm "0 PUSHINT";
   (int wc, _) = parse_std_addr(addr);
   throw_unless(333, wc == workchain());
 }
+
+slice null_addr() asm "b{00} PUSHSLICE";
+int flag::regular() asm "16 PUSHINT";
+int flag::bounce() asm "8 PUSHINT";
+int flag::bounced() asm "4 PUSHINT";
