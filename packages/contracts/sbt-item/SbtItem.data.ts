@@ -1,8 +1,7 @@
 import {Address, Cell} from "ton";
 import BN from "bn.js";
 import {encodeOffChainContent} from "../../nft-content/nftContent";
-import {Queries as CollectionQueries} from '../sbt-collection/SbtCollection.data'
-import {BitString} from "ton/dist";
+import {Queries as CollectionQueries} from '../nft-collection/NftCollection.data'
 
 import {
     KeyObject,
