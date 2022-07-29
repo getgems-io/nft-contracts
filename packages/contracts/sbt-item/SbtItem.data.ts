@@ -7,6 +7,7 @@ import {
     KeyObject,
     sign
 } from 'node:crypto';
+import {beginCell} from "ton/dist";
 
 export type SbtItemData = {
     index: number
@@ -14,7 +15,7 @@ export type SbtItemData = {
     ownerAddress: Address
     content: string
     ownerPubKey: BN
-    seqno: number
+    nonce: number
 }
 
 export function buildSbtItemDataCell(data: SbtItemData) {
@@ -28,7 +29,7 @@ export function buildSbtItemDataCell(data: SbtItemData) {
     dataCell.bits.writeAddress(data.ownerAddress)
     dataCell.refs.push(contentCell)
     dataCell.bits.writeUint(data.ownerPubKey, 256)
-    dataCell.bits.writeUint(data.seqno, 32)
+    dataCell.bits.writeUint(data.nonce, 64)
 
     return dataCell
 }
@@ -47,7 +48,7 @@ export type SbtSingleData = {
     editorAddress: Address
     content: string
     ownerPubKey: BN
-    seqno: number
+    nonce: number
 }
 
 export function buildSingleSbtDataCell(data: SbtSingleData) {
@@ -59,7 +60,7 @@ export function buildSingleSbtDataCell(data: SbtSingleData) {
     dataCell.bits.writeAddress(data.editorAddress)
     dataCell.refs.push(contentCell)
     dataCell.bits.writeUint(data.ownerPubKey, 256)
-    dataCell.bits.writeUint(data.seqno, 32)
+    dataCell.bits.writeUint(data.nonce, 64)
 
     return dataCell
 }
@@ -70,9 +71,9 @@ export const OperationCodes = {
     getStaticDataResponse: 0x8b771735,
     EditContent: 0x1a0b9d51,
     TransferEditorship: 0x1c04412a,
-    PullOwnership: 0x2ad91252,
-    ProveOwnership: 0x2e0de890,
-    VerifyOwnership: 0x5d795580
+    PullOwnership: 0x205e9c7b,
+    ProveOwnership: 0x38061b82,
+    VerifyOwnership: 0x01b628aa
 }
 
 export const Queries = {
@@ -88,13 +89,13 @@ export const Queries = {
 
         return msgBody
     },
-    pullOwnership: (params: { queryId?: number, seqno: number, key: KeyObject, newOwner?: Address, responseTo?: Address, forwardAmount?: BN }) => {
+    pullOwnership: (params: { queryId?: number, nonce: number, key: KeyObject, newOwner?: Address, responseTo?: Address, forwardAmount?: BN }) => {
         let msgBody = new Cell()
         msgBody.bits.writeUint(OperationCodes.PullOwnership, 32)
         msgBody.bits.writeUint(params.queryId || 0, 64)
 
         let msgPayload = new Cell()
-        msgPayload.bits.writeUint(params.seqno, 32)
+        msgPayload.bits.writeUint(params.nonce, 64)
         msgPayload.bits.writeAddress(params.newOwner || null)
         msgPayload.bits.writeAddress(params.responseTo || null)
         msgPayload.bits.writeBit(false) // no custom payload
@@ -110,13 +111,13 @@ export const Queries = {
 
         return msgBody
     },
-    proveOwnership: (params: { queryId?: number, to: Address, data: Cell }) => {
+    proveOwnership: (params: { queryId?: number, to: Address, data: Cell, withContent:boolean }) => {
         let msgBody = new Cell()
         msgBody.bits.writeUint(OperationCodes.ProveOwnership, 32)
         msgBody.bits.writeUint(params.queryId || 0, 64)
         msgBody.bits.writeAddress(params.to)
-        msgBody.bits.writeBit(true) // either
         msgBody.refs.push(params.data)
+        msgBody.bits.writeBit(params.withContent)
 
         return msgBody
     },
@@ -126,8 +127,9 @@ export const Queries = {
         msgBody.bits.writeUint(params.queryId || 0, 64)
         msgBody.bits.writeUint(params.id, 256)
         msgBody.bits.writeAddress(params.to)
-        msgBody.bits.writeBit(true) // either
         msgBody.refs.push(params.data)
+        msgBody.bits.writeBit(true)
+        msgBody.refs.push(beginCell().endCell())
 
         return msgBody
     },

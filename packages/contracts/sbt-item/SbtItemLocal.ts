@@ -61,15 +61,15 @@ export class SbtItemLocal {
         }
     }
 
-    async getSeqno(): Promise<number> {
-        let res = await this.contract.invokeGetMethod('seqno', [])
+    async getNonce(): Promise<BN> {
+        let res = await this.contract.invokeGetMethod('get_nonce', [])
         if (res.type !== 'success') {
-            throw new Error(`Cant invoke seqno`)
+            throw new Error(`Cant invoke get_nonce`)
         }
 
-        let [seq] = res.result as [BN]
+        let [n] = res.result as [BN]
 
-        return seq.toNumber()
+        return n
     }
 
     async getPubKey(): Promise<BN> {
@@ -144,7 +144,9 @@ export class SbtItemLocal {
         let code = await compileFunc(SbtItemSource)
 
         let data = buildSbtItemDataCell(config)
-        let contract = await SmartContract.fromCell(code.cell, data)
+        let contract = await SmartContract.fromCell(code.cell, data, {
+            debug: true
+        })
 
         let address = contractAddress({
             workchain: 0,

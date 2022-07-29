@@ -12,6 +12,6 @@ int op::transfer_editorship() asm "0x1c04412a PUSHINT";
 int op::editorship_assigned() asm "0x511a4463 PUSHINT";
 
 ;; SBT
-int op::pull_ownership() asm "0x2ad91252 PUSHINT";
-int op::verify_ownership() asm "0x5d795580 PUSHINT";
-int op::prove_ownership() asm "0x2e0de890 PUSHINT";
+int op::pull_ownership() asm "0x205e9c7b PUSHINT";
+int op::verify_ownership() asm "0x01b628aa PUSHINT";
+int op::prove_ownership() asm "0x38061b82 PUSHINT";

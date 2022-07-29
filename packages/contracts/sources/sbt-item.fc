@@ -24,20 +24,34 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
 ;;  MsgAddressInt owner_address
 ;;  cell content
 ;;  uint256 pub_key
-;;  uint32 seqno
+;;  uint64 nonce
 ;;
 
-(int, int, slice, slice, cell, int, int) load_data() {
+global int index;
+global int init?;
+global slice collection_address;
+global slice owner_address;
+global cell content;
+global int pub_key;
+global int nonce;
+
+() load_data() impure {
     slice ds = get_data().begin_parse();
-    var (index, collection_address) = (ds~load_uint(64), ds~load_msg_addr());
+
+    index              = ds~load_uint(64);
+    collection_address = ds~load_msg_addr();
+    init?              = false;
+
     if (ds.slice_bits() > 0) {
-      return (-1, index, collection_address, ds~load_msg_addr(), ds~load_ref(), ds~load_uint(256), ds~load_uint(32));
-    } else {
-      return (0, index, collection_address, null(), null(), 0, 0); ;; sbt not initialized yet
+      init?         = true;
+      owner_address = ds~load_msg_addr();
+      content       = ds~load_ref();
+      pub_key       = ds~load_uint(256);
+      nonce         = ds~load_uint(64);
     }
 }
 
-() store_data(int index, slice collection_address, slice owner_address, cell content, int pub_key, int seqno) impure {
+() store_data() impure {
     set_data(
         begin_cell()
             .store_uint(index, 64)
@@ -45,7 +59,7 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
             .store_slice(owner_address)
             .store_ref(content)
             .store_uint(pub_key, 256)
-            .store_uint(seqno, 32)
+            .store_uint(nonce, 64)
             .end_cell()
     );
 }
@@ -66,10 +80,10 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
   send_raw_message(msg.end_cell(), send_mode);
 }
 
-() pull_ownership(int my_balance, int index, slice collection_address, slice owner_address, cell content, slice sender_address, int query_id, slice in_msg_body, int fwd_fees, int pub_key, int seqno) impure inline {
+() pull_ownership(int my_balance, slice sender_address, int query_id, slice in_msg_body, int fwd_fees) impure inline {
     slice sign_cell = in_msg_body~load_ref().begin_parse();
-    throw_if(401, check_signature(slice_hash(in_msg_body), sign_cell.preload_bits(512), pub_key) == 0);
-    throw_if(409, seqno != in_msg_body~load_uint(32));
+    throw_unless(401, check_signature(slice_hash(in_msg_body), sign_cell.preload_bits(512), pub_key));
+    throw_if(409, nonce != in_msg_body~load_uint(64));
 
     slice new_owner_address = in_msg_body~load_msg_addr();
     if (new_owner_address.slice_bits() > 2) {
@@ -79,7 +93,7 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
     throw_unless(403, equal_slices(sender_address, new_owner_address) | equal_slices(null_addr(), new_owner_address));
 
     slice response_destination = in_msg_body~load_msg_addr();
-    in_msg_body~load_int(1); ;; this nft don't use custom_payload
+    in_msg_body~load_int(1); ;; this sbt don't use custom_payload
     int forward_amount = in_msg_body~load_coins();
 
     int rest_amount = my_balance - min_tons_for_storage();
@@ -101,7 +115,10 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
       send_msg(flag::regular(), response_destination, rest_amount, op::excesses(), query_id, null(), 1); ;; paying fees, revert on errors
     }
 
-    store_data(index, collection_address, new_owner_address, content, pub_key, seqno + 1);
+    randomize_lt();
+    owner_address = new_owner_address;
+    nonce = (query_id + rand(0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF;
+    store_data();
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -120,10 +137,18 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
     cs~load_coins(); ;; skip ihr_fee
     int fwd_fee = cs~load_coins(); ;; we use message fwd_fee for estimation of forward_payload costs
 
-    (int init?, int index, slice collection_address, slice owner_address, cell content, int pub_key, int seqno) = load_data();
+    load_data();
+
     if (~ init?) {
       throw_unless(405, equal_slices(collection_address, sender_address));
-      store_data(index, collection_address, in_msg_body~load_msg_addr(), in_msg_body~load_ref(), in_msg_body~load_uint(256), 1);
+
+      randomize_lt();
+      owner_address = in_msg_body~load_msg_addr();
+      content       = in_msg_body~load_ref();
+      pub_key       = in_msg_body~load_uint(256);
+      nonce         = rand(0xFFFFFFFFFFFFFFFF);
+
+      store_data();
       return ();
     }
 
@@ -144,14 +169,22 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
       ;; if on null address = destroyed
       throw_unless(404, owner_address.slice_bits() > 2);
 
-      pull_ownership(my_balance, index, collection_address, owner_address, content, sender_address, query_id, in_msg_body, fwd_fee, pub_key, seqno);
+      pull_ownership(my_balance, sender_address, query_id, in_msg_body, fwd_fee);
       return ();
     }
     if (op == op::prove_ownership()) {
       throw_unless(401, equal_slices(owner_address, sender_address));
 
       slice dest = in_msg_body~load_msg_addr();
-      send_msg(flag::regular() + flag::bounce(), dest, 0, op::verify_ownership(), query_id, begin_cell().store_uint(index, 256).store_slice(owner_address).store_slice(in_msg_body), 64);  ;; carry all the remaining value of the inbound message
+      cell body = in_msg_body~load_ref();
+      int with_content = in_msg_body~load_uint(1);
+
+      var msg = begin_cell().store_uint(index, 256).store_slice(owner_address).store_ref(body).store_uint(with_content, 1);
+      if (with_content != 0) {
+        msg = msg.store_ref(content);
+      }
+
+      send_msg(flag::regular() + flag::bounce(), dest, 0, op::verify_ownership(), query_id, msg, 64);  ;; carry all the remaining value of the inbound message
       return ();
     }
     if (op == op::get_static_data()) {
@@ -166,16 +199,16 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
 ;;
 
 (int, int, slice, slice, cell) get_nft_data() method_id {
-  (int init?, int index, slice collection_address, slice owner_address, cell content, _, _) = load_data();
+  load_data();
   return (init?, index, collection_address, owner_address, content);
 }
 
-int seqno() method_id {
-  (_, _, _, _, _, _, int seqno) = load_data();
-  return seqno;
+int get_nonce() method_id {
+  load_data();
+  return nonce;
 }
 
 int get_public_key() method_id {
-  (_, _, _, _, _, int public_key, _) = load_data();
-  return public_key;
+  load_data();
+  return pub_key;
 }

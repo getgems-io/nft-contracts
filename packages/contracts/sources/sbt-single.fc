@@ -11,29 +11,33 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
 ;;  MsgAddressInt editor_address
 ;;  cell content
 ;;  uint256 pub_key
-;;  uint32 seqno
+;;  uint64 nonce
 ;;
 
-_ load_data() {
+global slice editor_address;
+global slice owner_address;
+global cell content;
+global int pub_key;
+global int nonce;
+
+() load_data() impure {
     slice ds = get_data().begin_parse();
 
-    return (
-        ds~load_msg_addr(),    ;; owner_address
-        ds~load_msg_addr(),    ;; editor_address
-        ds~load_ref(),         ;; content
-        ds~load_uint(256),     ;; pub_key
-        ds~load_uint(32)       ;; seqno
-    );
+    owner_address  = ds~load_msg_addr();
+    editor_address = ds~load_msg_addr();
+    content        = ds~load_ref();
+    pub_key        = ds~load_uint(256);
+    nonce          = ds~load_uint(64);
 }
 
-() store_data(slice owner_address, slice editor_address, cell content, int pub_key, int seqno) impure {
+() store_data() impure {
     set_data(
         begin_cell()
             .store_slice(owner_address)
             .store_slice(editor_address)
             .store_ref(content)
             .store_uint(pub_key, 256)
-            .store_uint(seqno, 32)
+            .store_uint(nonce, 64)
             .end_cell()
     );
 }
@@ -54,10 +58,10 @@ _ load_data() {
     send_raw_message(msg.end_cell(), send_mode);
 }
 
-() pull_ownership(int my_balance, slice owner_address, slice editor_address, cell content, slice sender_address, int query_id, slice in_msg_body, int fwd_fees, int pub_key, int seqno) impure inline {
+() pull_ownership(int my_balance, slice sender_address, int query_id, slice in_msg_body, int fwd_fees) impure inline {
     slice sign_cell = in_msg_body~load_ref().begin_parse();
-    throw_if(401, check_signature(slice_hash(in_msg_body), sign_cell.preload_bits(512), pub_key) == 0);
-    throw_if(409, seqno != in_msg_body~load_uint(32));
+    throw_unless(401, check_signature(slice_hash(in_msg_body), sign_cell.preload_bits(512), pub_key));
+    throw_if(409, nonce != in_msg_body~load_uint(64));
 
     slice new_owner_address = in_msg_body~load_msg_addr();
     if (new_owner_address.slice_bits() > 2) {
@@ -89,10 +93,13 @@ _ load_data() {
       send_msg(flag::regular(), response_destination, rest_amount, op::excesses(), query_id, null(), 1); ;; paying fees, revert on errors
     }
 
-    store_data(new_owner_address, editor_address, content, pub_key, seqno + 1);
+    randomize_lt();
+    owner_address = new_owner_address;
+    nonce = (query_id + rand(0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF;
+    store_data();
 }
 
-() transfer_editorship(int my_balance, slice owner_address, slice editor_address, cell content, slice sender_address, int query_id, slice in_msg_body, int fwd_fees, int pub_key, int seqno) impure inline {
+() transfer_editorship(int my_balance, slice sender_address, int query_id, slice in_msg_body, int fwd_fees) impure inline {
     throw_unless(401, equal_slices(sender_address, editor_address));
 
     slice new_editor_address = in_msg_body~load_msg_addr();
@@ -120,7 +127,8 @@ _ load_data() {
       send_msg(flag::regular(), response_destination, rest_amount, op::excesses(), query_id, null(), 1); ;; paying fees, revert on errors
     }
 
-    store_data(owner_address, new_editor_address, content, pub_key, seqno);
+    editor_address = new_editor_address;
+    store_data();
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -138,7 +146,7 @@ _ load_data() {
     cs~load_coins(); ;; skip ihr_fee
     int fwd_fee = cs~load_coins(); ;; we use message fwd_fee for estimation of forward_payload costs
 
-    (slice owner_address, slice editor_address, cell content, int pub_key, int seqno) = load_data();
+    load_data();
 
     int op = in_msg_body~load_uint(32);
     int query_id = in_msg_body~load_uint(64);
@@ -162,23 +170,32 @@ _ load_data() {
       ;; if on null address = destroyed
       throw_unless(404, owner_address.slice_bits() > 2);
 
-      pull_ownership(my_balance, owner_address, editor_address, content, sender_address, query_id, in_msg_body, fwd_fee, pub_key, seqno);
+      pull_ownership(my_balance, sender_address, query_id, in_msg_body, fwd_fee);
       return ();
     }
     if (op == op::prove_ownership()) {
       throw_unless(401, equal_slices(owner_address, sender_address));
 
       slice dest = in_msg_body~load_msg_addr();
-      send_msg(flag::regular() + flag::bounce(), dest, 0, op::verify_ownership(), query_id, begin_cell().store_uint(0, 256).store_slice(owner_address).store_slice(in_msg_body), 64);  ;; carry all the remaining value of the inbound message
+      cell body = in_msg_body~load_ref();
+      int with_content = in_msg_body~load_uint(1);
+
+      var msg = begin_cell().store_uint(0, 256).store_slice(owner_address).store_ref(body).store_uint(with_content, 1);
+      if (with_content != 0) {
+        msg = msg.store_ref(content);
+      }
+
+      send_msg(flag::regular() + flag::bounce(), dest, 0, op::verify_ownership(), query_id, msg, 64);  ;; carry all the remaining value of the inbound message
       return ();
     }
     if (op == op::transfer_editorship()) {
-        transfer_editorship(my_balance, owner_address, editor_address, content, sender_address, query_id, in_msg_body, fwd_fee, pub_key, seqno);
+        transfer_editorship(my_balance, sender_address, query_id, in_msg_body, fwd_fee);
         return ();
     }
     if (op == op::edit_content()) {
         throw_unless(410, equal_slices(sender_address, editor_address));
-        store_data(owner_address, editor_address, in_msg_body~load_ref(), pub_key, seqno);
+        content = in_msg_body~load_ref();
+        store_data();
         return ();
     }
     throw(0xffff);
@@ -189,21 +206,21 @@ _ load_data() {
 ;;
 
 (int, int, slice, slice, cell) get_nft_data() method_id {
-    (slice owner_address, _, cell content, _, _) = load_data();
+    load_data();
     return (true, 0, null_addr(), owner_address, content);
 }
 
 slice get_editor() method_id {
-    (_, slice editor_address, _, _, _) = load_data();
+    load_data();
     return editor_address;
 }
 
-int seqno() method_id {
-  (_, _, _, _, int seqno) = load_data();
-  return seqno;
+int get_nonce() method_id {
+  load_data();
+  return nonce;
 }
 
 int get_public_key() method_id {
-  (_, _, _, int public_key, _) = load_data();
-  return public_key;
+  load_data();
+  return pub_key;
 }

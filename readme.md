@@ -18,14 +18,14 @@ For this it stores immutable public key of the owner, and to change owner's addr
 #### Changing owner's address
 If you migrated to newer version of wallet and you want to move your SBT to it, you could send transfer to SBT from new wallet with payload:
 ```
-pull_ownership#2ad91252 query_id:uint64 signature:^(signature:(bits 512)) 
-sbt_seqno:uint32 new_owner:MsgAddress response_destination:MsgAddress 
+pull_ownership#205e9c7b query_id:uint64 signature:^(signature:(bits 512)) 
+sbt_nonce:uint64 new_owner:MsgAddress response_destination:MsgAddress 
 custom_payload:(Maybe ^Cell) forward_amount:(VarUInteger 16) 
-forward_payload:(Either Cell ^Cell) = InternalMsgBody
+forward_payload:(Either Cell ^Cell)
 ```
-1. To do it you first need to know current SBT's seqno, you can trigger `seqno` method of SBT contract to get it.
+1. To do it you first need to know current SBT's nonce, you can trigger `get_nonce` method of the SBT contract to get it.
 2. `new_owner` should equals your wallet from which you sends message.
-3. Then you need to sign `sbt_seqno:uint32 new_owner:MsgAddress response_destination:MsgAddress custom_payload:(Maybe ^Cell) forward_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell)` this part of the message and put signature as first reference.
+3. Then you need to sign `sbt_nonce:uint64 new_owner:MsgAddress response_destination:MsgAddress custom_payload:(Maybe ^Cell) forward_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell)` this part of the message and put signature as first reference.
 4. Now you can send this message as internal to SBT and owner will be changed to your new wallet. 
 
 It is also possible to destroy SBT by setting `new_owner` to null address, after that, owner's address cannot be changed anymore.
@@ -38,20 +38,20 @@ this way target contract could know that you are owner of SBT which relates to e
 
 To use this functionality SBT owner's wallet can send transfer with this scheme to SBT:
 ```
-prove_ownership#2e0de890 query_id:uint64 dest:MsgAddress 
-data:(Either Cell ^Cell)
+prove_ownership#38061b82 query_id:uint64 dest:MsgAddress 
+data:^Cell with_content:bool
 ```
 After that SBT will send transfer to `dest` with scheme:
 ```
-verify_ownership#5d795580 query_id:uint64 sbt_id:uint256 
-owner:MsgAddress data:(Either Cell ^Cell)
+verify_ownership#01b628aa query_id:uint64 sbt_id:uint256 owner:MsgAddress 
+data:^Cell content:(Maybe ^Cell)
 ```
 If something goes wrong and target contract not accepts message and it will be bounced back to SBT, SBT will proxy this bounce to owner, this way coins will not stuck on SBT.
 
 #### Verify SBT contract example
 
 ```C
-int op::verify_ownership() asm "0x5d795580 PUSHINT";
+int op::verify_ownership() asm "0x01b628aa PUSHINT";
 
 int equal_slices (slice a, slice b) asm "SDEQ";
 
@@ -92,6 +92,12 @@ slice calculate_sbt_address(slice collection_addr, cell sbt_item_code, int wc, i
     throw_unless(403, equal_slices(sender_address, collection_addr.calculate_sbt_address(sbt_code, 0, id)));
 
     slice owner_addr = in_msg~load_msg_addr();
+    cell payload = in_msg~load_ref();
+
+    int with_content = in_msg~load_uint(1);
+    if (with_content != 0) {
+        cell sbt_content = in_msg~load_ref();
+    }
 
     ;;
     ;; sbt verified, do something

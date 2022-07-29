@@ -32,7 +32,7 @@ const defaultConfig: SbtItemData = {
     ownerAddress: OWNER_ADDRESS,
     content: 'test',
     ownerPubKey: pubKey,
-    seqno: 1
+    nonce: 1
 }
 
 const singleConfig: SbtSingleData = {
@@ -40,7 +40,7 @@ const singleConfig: SbtSingleData = {
     editorAddress: EDITOR_ADDRESS,
     content: 'test_content',
     ownerPubKey: pubKey,
-    seqno: 1
+    nonce: 1
 }
 
 describe('sbt item smc', () => {
@@ -77,7 +77,7 @@ describe('sbt item smc', () => {
         expect(res).toEqual(null)
     })
 
-    it('should transfer', async () => {
+    it('should not transfer', async () => {
         let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
         let newOwner = randomAddress()
         let res = await sbt.contract.sendInternalMessage(new InternalMessage({
@@ -107,7 +107,7 @@ describe('sbt item smc', () => {
             bounce: false,
             body: new CommonMessageInfo({
                 body: new CellMessage(Queries.pullOwnership({
-                    seqno: 2,
+                    nonce: 2,
                     key: privateKey,
                     newOwner,
                     forwardAmount: toNano('0.01'),
@@ -129,7 +129,7 @@ describe('sbt item smc', () => {
             bounce: false,
             body: new CommonMessageInfo({
                 body: new CellMessage(Queries.pullOwnership({
-                    seqno: 1,
+                    nonce: 1,
                     key: privateKey2,
                     newOwner,
                     forwardAmount: toNano('0.01'),
@@ -151,7 +151,7 @@ describe('sbt item smc', () => {
             bounce: false,
             body: new CommonMessageInfo({
                 body: new CellMessage(Queries.pullOwnership({
-                    seqno: 1,
+                    nonce: 1,
                     key: privateKey,
                     newOwner,
                     forwardAmount: toNano('0.01'),
@@ -173,7 +173,7 @@ describe('sbt item smc', () => {
             bounce: false,
             body: new CommonMessageInfo({
                 body: new CellMessage(Queries.pullOwnership({
-                    seqno: 1,
+                    nonce: 1,
                     key: privateKey,
                     newOwner,
                     forwardAmount: toNano('0.01'),
@@ -191,7 +191,7 @@ describe('sbt item smc', () => {
 
         expect(data.ownerAddress.toFriendly()).toEqual(newOwner.toFriendly())
 
-        expect( await sbt.getSeqno()).toEqual(2)
+        expect( await sbt.getNonce()).not.toEqual(new BN(1))
         expect( await sbt.getPubKey()).toEqual(pubKey)
     })
 
@@ -205,7 +205,7 @@ describe('sbt item smc', () => {
             bounce: false,
             body: new CommonMessageInfo({
                 body: new CellMessage(Queries.pullOwnership({
-                    seqno: 1,
+                    nonce: 1,
                     key: privateKey,
                     forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
@@ -222,7 +222,7 @@ describe('sbt item smc', () => {
 
         expect(data.ownerAddress).toEqual(null)
 
-        expect( await sbt.getSeqno()).toEqual(2)
+        expect( await sbt.getNonce()).not.toEqual(new BN(1))
         expect( await sbt.getPubKey()).toEqual(pubKey)
     })
 
@@ -242,6 +242,7 @@ describe('sbt item smc', () => {
                 body: new CellMessage(Queries.proveOwnership({
                     to: randomAddress(),
                     data: dataCell,
+                    withContent: false
                 }))
             })
         }))
@@ -249,7 +250,7 @@ describe('sbt item smc', () => {
         expect(res.exit_code).toEqual(401)
     })
 
-    it('should prove ownership', async () => {
+    it('should prove ownership with content', async () => {
         let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
 
         let dataCell = new Cell()
@@ -264,6 +265,49 @@ describe('sbt item smc', () => {
                 body: new CellMessage(Queries.proveOwnership({
                     to: randomAddress(),
                     data: dataCell,
+                    withContent: true
+                }))
+            })
+        }))
+        expect(res.exit_code).toEqual(0)
+
+        let [responseMessage] = res.actionList as [SendMsgAction]
+        let response = responseMessage.message.body.beginParse()
+
+        let op = response.readUintNumber(32)
+        let queryId = response.readUintNumber(64)
+        let index = response.readUintNumber(256)
+        let owner = response.readAddress() as Address
+        let data = response.readRef()
+        let withCont = response.readBit()
+        let cont = response.readRef()
+
+
+        expect(op).toEqual(OperationCodes.VerifyOwnership)
+        expect(queryId).toEqual(0)
+        expect(index).toEqual(777)
+        expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
+        expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(withCont).toEqual(true)
+        expect(cont.readBuffer(4).toString()).toEqual('test')
+    })
+
+    it('should prove ownership without content', async () => {
+        let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
+
+        let dataCell = new Cell()
+        dataCell.bits.writeUint(888,16)
+
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.ownerAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.proveOwnership({
+                    to: randomAddress(),
+                    data: dataCell,
+                    withContent: false
                 }))
             })
         }))
@@ -277,14 +321,16 @@ describe('sbt item smc', () => {
         let queryId = response.readUintNumber(64)
         let index = response.readUintNumber(256)
         let owner = response.readAddress() as Address
-        response.readBit()
         let data = response.readRef()
+        let withCont = response.readBit()
+
 
         expect(op).toEqual(OperationCodes.VerifyOwnership)
         expect(queryId).toEqual(0)
         expect(index).toEqual(777)
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(withCont).toEqual(false)
     })
 
     it('should verify ownership bounce to owner', async () => {
@@ -461,7 +507,7 @@ describe('single sbt', () => {
             bounce: false,
             body: new CommonMessageInfo({
                 body: new CellMessage(Queries.pullOwnership({
-                    seqno: 2,
+                    nonce: 2,
                     key: privateKey,
                     newOwner,
                     forwardAmount: toNano('0.01'),
@@ -483,7 +529,7 @@ describe('single sbt', () => {
             bounce: false,
             body: new CommonMessageInfo({
                 body: new CellMessage(Queries.pullOwnership({
-                    seqno: 1,
+                    nonce: 1,
                     key: privateKey2,
                     newOwner,
                     forwardAmount: toNano('0.01'),
@@ -505,7 +551,7 @@ describe('single sbt', () => {
             bounce: false,
             body: new CommonMessageInfo({
                 body: new CellMessage(Queries.pullOwnership({
-                    seqno: 1,
+                    nonce: 1,
                     key: privateKey,
                     newOwner,
                     forwardAmount: toNano('0.01'),
@@ -527,7 +573,7 @@ describe('single sbt', () => {
             bounce: false,
             body: new CommonMessageInfo({
                 body: new CellMessage(Queries.pullOwnership({
-                    seqno: 1,
+                    nonce: 1,
                     key: privateKey,
                     newOwner,
                     forwardAmount: toNano('0.01'),
@@ -545,7 +591,7 @@ describe('single sbt', () => {
 
         expect(data.ownerAddress.toFriendly()).toEqual(newOwner.toFriendly())
 
-        expect( await sbt.getSeqno()).toEqual(2)
+        expect( await sbt.getNonce()).not.toEqual(new BN(1))
         expect( await sbt.getPubKey()).toEqual(pubKey)
     })
 
@@ -559,7 +605,7 @@ describe('single sbt', () => {
             bounce: false,
             body: new CommonMessageInfo({
                 body: new CellMessage(Queries.pullOwnership({
-                    seqno: 1,
+                    nonce: 1,
                     key: privateKey,
                     forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
@@ -576,7 +622,7 @@ describe('single sbt', () => {
 
         expect(data.ownerAddress).toEqual(null)
 
-        expect( await sbt.getSeqno()).toEqual(2)
+        expect( await sbt.getNonce()).not.toEqual(new BN(1))
         expect( await sbt.getPubKey()).toEqual(pubKey)
     })
 
@@ -596,6 +642,7 @@ describe('single sbt', () => {
                 body: new CellMessage(Queries.proveOwnership({
                     to: randomAddress(),
                     data: dataCell,
+                    withContent: false,
                 }))
             })
         }))
@@ -603,7 +650,7 @@ describe('single sbt', () => {
         expect(res.exit_code).toEqual(401)
     })
 
-    it('should prove ownership', async () => {
+    it('should prove ownership with content', async () => {
         let sbt = await SbtItemLocal.createSingle(singleConfig)
 
         let dataCell = new Cell()
@@ -618,6 +665,7 @@ describe('single sbt', () => {
                 body: new CellMessage(Queries.proveOwnership({
                     to: randomAddress(),
                     data: dataCell,
+                    withContent: true
                 }))
             })
         }))
@@ -631,14 +679,58 @@ describe('single sbt', () => {
         let queryId = response.readUintNumber(64)
         let index = response.readUintNumber(256)
         let owner = response.readAddress() as Address
-        response.readBit()
         let data = response.readRef()
+        let withCont =  response.readBit()
+        let cont = response.readRef()
+        cont.readBuffer(1) // skip chain tag
 
         expect(op).toEqual(OperationCodes.VerifyOwnership)
         expect(queryId).toEqual(0)
         expect(index).toEqual(0)
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(withCont).toEqual(true)
+        expect(cont.readBuffer('test_content'.length).toString()).toEqual('test_content')
+    })
+
+    it('should prove ownership without content', async () => {
+        let sbt = await SbtItemLocal.createSingle(singleConfig)
+
+        let dataCell = new Cell()
+        dataCell.bits.writeUint(888,16)
+
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.ownerAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.proveOwnership({
+                    to: randomAddress(),
+                    data: dataCell,
+                    withContent: false
+                }))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(0)
+
+        let [responseMessage] = res.actionList as [SendMsgAction]
+        let response = responseMessage.message.body.beginParse()
+
+        let op = response.readUintNumber(32)
+        let queryId = response.readUintNumber(64)
+        let index = response.readUintNumber(256)
+        let owner = response.readAddress() as Address
+        let data = response.readRef()
+        let withCont =  response.readBit()
+
+        expect(op).toEqual(OperationCodes.VerifyOwnership)
+        expect(queryId).toEqual(0)
+        expect(index).toEqual(0)
+        expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
+        expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(withCont).toEqual(false)
     })
 
     it('should verify ownership bounce to owner', async () => {
