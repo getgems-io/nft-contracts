@@ -81,8 +81,8 @@ global int nonce;
 }
 
 () pull_ownership(int my_balance, slice sender_address, int query_id, slice in_msg_body, int fwd_fees) impure inline {
-    slice sign_cell = in_msg_body~load_ref().begin_parse();
-    throw_unless(401, check_signature(slice_hash(in_msg_body), sign_cell.preload_bits(512), pub_key));
+    slice signature = in_msg_body~load_ref().begin_parse().preload_bits(512);
+    throw_unless(401, check_signature(slice_hash(in_msg_body), signature, pub_key));
     throw_if(409, nonce != in_msg_body~load_uint(64));
 
     slice new_owner_address = in_msg_body~load_msg_addr();
@@ -108,11 +108,16 @@ global int nonce;
     throw_unless(402, rest_amount >= 0); ;; base sbt spends fixed amount of gas, will not check for response
 
     if (forward_amount) {
-      send_msg(flag::regular(), new_owner_address, forward_amount, op::ownership_assigned(), query_id, begin_cell().store_slice(owner_address).store_slice(in_msg_body), 1);  ;; paying fees, revert on errors
+      var msg = begin_cell().store_slice(owner_address).store_slice(in_msg_body);
+
+      ;; mode 1 = paying fees, revert on errors
+      send_msg(flag::regular(), new_owner_address, forward_amount, op::ownership_assigned(), query_id, msg, 1);
     }
     if (need_response) {
       force_chain(response_destination);
-      send_msg(flag::regular(), response_destination, rest_amount, op::excesses(), query_id, null(), 1); ;; paying fees, revert on errors
+
+      ;; mode 1 = paying fees, revert on errors
+      send_msg(flag::regular(), response_destination, rest_amount, op::excesses(), query_id, null(), 1);
     }
 
     randomize_lt();
@@ -157,7 +162,10 @@ global int nonce;
 
     if (flags & 1) { ;; route all prove_ownership bounced messages to owner
       if (op == op::verify_ownership()) {
-        send_msg(flag::regular() + flag::bounced(), owner_address, 0, op::verify_ownership(), query_id, begin_cell().store_slice(in_msg_body), 64);  ;; carry all the remaining value of the inbound message
+        var msg = begin_cell().store_slice(in_msg_body);
+
+        ;; mode 64 = carry all the remaining value of the inbound message
+        send_msg(flag::regular() + flag::bounced(), owner_address, 0, op::verify_ownership(), query_id, msg, 64);
       }
       return ();
     }
@@ -179,16 +187,25 @@ global int nonce;
       cell body = in_msg_body~load_ref();
       int with_content = in_msg_body~load_uint(1);
 
-      var msg = begin_cell().store_uint(index, 256).store_slice(owner_address).store_ref(body).store_uint(with_content, 1);
+      var msg = begin_cell()
+        .store_uint(index, 256)
+        .store_slice(owner_address)
+        .store_ref(body)
+        .store_uint(with_content, 1);
+
       if (with_content != 0) {
         msg = msg.store_ref(content);
       }
 
-      send_msg(flag::regular() + flag::bounce(), dest, 0, op::verify_ownership(), query_id, msg, 64);  ;; carry all the remaining value of the inbound message
+      ;; mode 64 = carry all the remaining value of the inbound message
+      send_msg(flag::regular() + flag::bounce(), dest, 0, op::verify_ownership(), query_id, msg, 64);
       return ();
     }
     if (op == op::get_static_data()) {
-      send_msg(flag::regular(), sender_address, 0, op::report_static_data(), query_id, begin_cell().store_uint(index, 256).store_slice(collection_address), 64);  ;; carry all the remaining value of the inbound message
+      var msg = begin_cell().store_uint(index, 256).store_slice(collection_address);
+
+      ;; mode 64 = carry all the remaining value of the inbound message
+      send_msg(flag::regular(), sender_address, 0, op::report_static_data(), query_id, msg, 64);
       return ();
     }
     throw(0xffff);
