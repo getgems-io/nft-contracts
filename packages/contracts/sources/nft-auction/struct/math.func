@@ -1,0 +1,15 @@
+;;
+;;  math utils
+;;
+
+int division(int a, int b) { ;; division with factor
+    return muldiv(a, 1000000000 {- 1e9 -}, b);
+}
+
+int multiply(int a, int b) { ;; multiply with factor
+    return muldiv (a, b, 1000000000 {- 1e9 -});
+}
+
+int math::get_percent(int a, int percent, int factor) {
+    return division(multiply(a, percent), factor);
+}

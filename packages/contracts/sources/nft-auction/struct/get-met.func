@@ -1,0 +1,87 @@
+(int, int) get_nft_owner() method_id {
+    init_data();
+
+    if (nft_owner.slice_bits() <= 2) { return (0, 0);}
+
+    (int wc, int addr) = parse_std_addr(nft_owner);
+    return (wc, addr);
+}
+
+(int, int) get_nft_addr() method_id {
+    init_data();
+
+    if (nft_addr.slice_bits() <= 2) { return (0, 0);}
+
+    (int wc, int addr) = parse_std_addr(nft_addr);
+    return (wc, addr);
+}
+
+(int, int) get_last_member() method_id {
+    init_data();
+    ;; trhow error of addr not std
+    (int wc, int addr) = parse_std_addr(last_member);
+    return (wc, addr);
+}
+
+(int, int) get_mp_addr() method_id {
+    init_data();
+    ;; trhow error of addr not std
+    (int wc, int addr) = parse_std_addr(mp_addr);
+    return (wc, addr);
+}
+
+(int, int) get_mp_fee_addr() method_id {
+    init_data();
+    ;; trhow error of addr not std
+    (int wc, int addr) = parse_std_addr(mp_fee_addr);
+    return (wc, addr);
+}
+
+(int, int) get_royalty_fee_addr() method_id {
+    init_data();
+    ;; trhow error of addr not std
+    (int wc, int addr) = parse_std_addr(royalty_fee_addr);
+    return (wc, addr);
+}
+
+(int, int, int, int) get_fees_info() method_id {
+    init_data();
+    return (
+            mp_fee_factor, mp_fee_base,
+            royalty_fee_factor, royalty_fee_base
+    );
+}
+
+(int, int, int, int, int) get_bid_info() method_id {
+    init_data();
+    return (
+            min_bid, max_bid, min_step,
+            last_bid, end_time
+    );
+}
+
+;; 1  2    3    4      5      6      7    8      9    10     11   12   13     14   15   16   17   18   19   20
+(int, int, int, slice, slice, slice, int, slice, int, slice, int, int, slice, int, int, int, int, int, int, int) get_sale_data() method_id {
+    init_data();
+
+    return (
+            0x415543, ;; 1 nft aucion ("AUC")
+            end?, ;; 2
+            end_time, ;; 3
+            mp_addr, ;; 4
+            nft_addr, ;; 5
+            nft_owner, ;; 6
+            last_bid, ;; 7
+            last_member, ;; 8
+            min_step, ;; 9
+            mp_fee_addr, ;; 10
+            mp_fee_factor, mp_fee_base, ;; 11, 12
+            royalty_fee_addr, ;; 13
+            royalty_fee_factor, royalty_fee_base, ;; 14, 15
+            max_bid, ;; 16
+            min_bid, ;; 17
+            created_at?, ;; 18
+            last_bid_at, ;; 19
+            is_canceled? ;; 20
+    );
+}

@@ -1,0 +1,112 @@
+;;
+;;  persistant and runtime storage вescription
+;;
+
+global int      init?; ;; init_data safe check
+global int      end?; ;; end auction or not
+global slice    mp_addr; ;; the address of the marketplace from which the contract is deployed
+global int      activated?; ;; contract is activated by external message or by nft transfer
+global int      created_at?; ;; timestamp of created acution
+global int      is_canceled?; ;; auction was cancelled by owner
+
+;; fees cell (ref)
+global slice    mp_fee_addr; ;; the address of the marketplace where the commission goes
+global int      mp_fee_factor; ;;
+global int      mp_fee_base; ;;
+global slice    royalty_fee_addr; ;; the address of the collection owner where the commission goes
+global int      royalty_fee_factor; ;;
+global int      royalty_fee_base; ;;
+
+;; bids info cell (ref)
+global int      min_bid; ;; minimal bid
+global int      max_bid; ;; maximum bid
+global int      min_step; ;; minimum step (can be 0)
+global slice    last_member; ;; last member address
+global int      last_bid; ;; last bid amount
+global int      last_bid_at; ;; timestamp of last bid
+global int      end_time; ;; unix end time
+global int      step_time; ;; by how much the time increases with the new bid (e.g. 30)
+global int      try_step_time; ;; after what time to start increasing the time (e.g. 60)
+
+;; nft info cell (ref)
+global slice    nft_owner; ;; nft owner addres (should be sent nft if auction canceled or money from auction)
+global slice    nft_addr; ;; nft address
+
+
+() init_data() impure inline_ref {- save for get methods -} {
+    ifnot(null?(init?)) { return ();}
+
+    slice ds = get_data().begin_parse();
+    end? = ds~load_int(1);
+    mp_addr = ds~load_msg_addr();
+    activated? = ds~load_int(1);
+    created_at? = ds~load_int(32);
+    is_canceled? = ds~load_int(1);
+
+    slice fees_cell = ds~load_ref().begin_parse();
+    mp_fee_addr = fees_cell~load_msg_addr();
+    mp_fee_factor = fees_cell~load_uint(32);
+    mp_fee_base = fees_cell~load_uint(32);
+    royalty_fee_addr = fees_cell~load_msg_addr();
+    royalty_fee_factor = fees_cell~load_uint(32);
+    royalty_fee_base = fees_cell~load_uint(32);
+
+    slice bids_cell = ds~load_ref().begin_parse();
+    min_bid = bids_cell~load_coins();
+    max_bid = bids_cell~load_coins();
+    min_step = bids_cell~load_coins();
+    last_member = bids_cell~load_msg_addr();
+    last_bid = bids_cell~load_coins();
+    last_bid_at = bids_cell~load_uint(32);
+    end_time = bids_cell~load_uint(32);
+    step_time = bids_cell~load_uint(32);
+    try_step_time = bids_cell~load_uint(32);
+
+    slice nft_cell = ds~load_ref().begin_parse();
+    nft_owner = nft_cell~load_msg_addr();
+    nft_addr = nft_cell~load_msg_addr();
+
+    init? = true;
+}
+
+() pack_data() impure inline_ref {
+    builder fees_cell = begin_cell()
+            .store_slice(mp_fee_addr) ;; + max    267 ($10 with Anycast = 0)
+            .store_uint(mp_fee_factor, 32) ;; + stc    32
+            .store_uint(mp_fee_base, 32) ;; + stc    32
+            .store_slice(royalty_fee_addr) ;; + max    267 ($10 with Anycast = 0)
+            .store_uint(royalty_fee_factor, 32) ;; + stc    32
+            .store_uint(royalty_fee_base, 32); ;; + stc    32
+    ;; total: (267 * 2) + (32 * 4) = 662 maximum bits
+
+    builder bids_cell = begin_cell()
+            .store_coins(min_bid) ;; + max    124
+            .store_coins(max_bid) ;; + max    124
+            .store_coins(min_step) ;; + max    124
+            .store_slice(last_member) ;; + max    267 ($10 with Anycast = 0)
+            .store_coins(last_bid) ;; + max    124
+            .store_uint(last_bid_at, 32) ;; + stc    32
+            .store_uint(end_time, 32) ;; + stc    32
+            .store_uint(step_time, 32) ;; + stc    32
+            .store_uint(try_step_time, 32); ;; +stc     32
+    ;; total 32*4 + 124*4 + 267 = 891
+
+    builder nft_cell = begin_cell()
+            .store_slice(nft_owner) ;; + max    267 ($10 with Anycast = 0)
+            .store_slice(nft_addr); ;; + max    267 ($10 with Anycast = 0)
+    ;; total: 267 * 2 = 534 maximum bits
+
+    set_data(
+            begin_cell()
+                    .store_int(end?, 1) ;; + stc    1
+                    .store_slice(mp_addr) ;; + max    267 ($10 with Anycast = 0)
+                    .store_int(activated?, 1) ;; activated?
+                    .store_int(created_at?, 32)
+                    .store_int(is_canceled?, 1)
+                    .store_ref(fees_cell.end_cell()) ;; + ref
+                    .store_ref(bids_cell.end_cell()) ;; + ref
+                    .store_ref(nft_cell.end_cell()) ;; + ref
+                    .end_cell()
+    );
+}
+

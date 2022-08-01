@@ -1,0 +1,95 @@
+;;
+;;  main FunC file git@github.com:cryshado/nft-auc-contest.git
+;;
+
+int equal_slices? (slice a, slice b) asm "SDEQ";
+
+#include "struct/op-codes.func";
+#include "struct/exit-codes.func";
+#include "struct/math.func";
+#include "struct/msg-utils.func";
+#include "struct/storage.func";
+#include "struct/handles.func";
+#include "struct/get-met.func";
+
+{-
+    SHOULD
+    [+] accept coins for deploy
+    [+] accept nft and change auction statud
+    [+] return transaction if auction already end
+    [+] can cancel auction
+    [+] accept new bid -> check auction end -> end auction
+-}
+() recv_internal(int my_balance, int msg_value, cell in_msg_cell, slice in_msg_body) impure {
+    slice cs = in_msg_cell.begin_parse();
+    throw_if(0, cs~load_uint(4) & 1);
+
+    slice sender_addr = cs~load_msg_addr();
+    init_data();
+
+    if (equal_slices?(sender_addr, mp_addr) & end? == true) {
+        int op = in_msg_body~load_uint(32);
+        if ((op == 0) & equal_slices(in_msg_body, msg::repeat_end_auction())) {
+            ;; special case for repeat end_auction logic if nft not transfered from auc contract
+            handle::end_auction();
+            return ();
+        }
+        if ((op == 0) & equal_slices(in_msg_body, msg::emergency_message())) {
+            ;; way to fix unexpected troubles with auction contract
+            ;; for example if some one transfer nft to this contract
+            var msg = in_msg_body~load_ref().begin_parse();
+            var mode = msg~load_uint(8);
+            send_raw_message(msg~load_ref(), mode);
+            return ();
+        }
+        ;; accept coins for deploy
+        return ();
+    }
+
+    if (equal_slices?(sender_addr, nft_addr)) {
+        handle::try_init_auction(sender_addr, in_msg_body);
+        return ();
+    }
+
+    if (now() >= end_time) {
+        handle::return_transaction(sender_addr);
+        handle::end_auction();
+        return ();
+    }
+
+    if (end? == true) {
+        handle::return_transaction(sender_addr);
+        return ();
+    }
+
+    if (equal_slices?(sender_addr, nft_owner)) | (equal_slices?(sender_addr, mp_addr)) {
+        throw_if(;;throw if it`s not message
+                exit::not_message(),
+                in_msg_body~load_uint(32) != 0
+        );
+
+        if (equal_slices?(in_msg_body, msg::cancel_msg())) {
+            handle::try_cancel(in_msg_body);
+        }
+
+        if (equal_slices?(in_msg_body, msg::stop_msg()) & equal_slices?(sender_addr, nft_owner)) {
+            handle::return_transaction(sender_addr);
+            handle::end_auction();
+        }
+
+        return ();
+    }
+
+    handle::new_bid(sender_addr, msg_value);
+}
+
+{-
+    Message for deploy contract external
+-}
+() recv_external(slice in_msg) impure {
+    init_data();
+    throw_if(exit::already_activated(), activated? == true);
+    accept_message();
+    activated? = true;
+    pack_data();
+}

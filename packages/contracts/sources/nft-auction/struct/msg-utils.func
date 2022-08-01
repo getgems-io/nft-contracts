@@ -1,0 +1,15 @@
+;;
+;;  text constants for msg comments
+;;
+
+slice msg::cancel_msg()     asm "<b 124 word cancel| $, b> <s PUSHSLICE";
+slice msg::stop_msg()       asm "<b 124 word stop| $, b> <s PUSHSLICE";
+
+slice msg::return_msg()     asm "<b 124 word Your transaction has not been accepted.| $, b> <s PUSHSLICE";
+slice msg::bid_return()     asm "<b 124 word Your bid has been outbid by another user.| $, b> <s PUSHSLICE";
+slice msg::mp_msg()         asm "<b 124 word Marketplace commission withdraw| $, b> <s PUSHSLICE";
+slice msg::royalty_msg()    asm "<b 124 word Royalty commission withdraw| $, b> <s PUSHSLICE";
+slice msg::profit_msg()     asm "<b 124 word Previous owner withdraw| $, b> <s PUSHSLICE";
+
+slice msg::repeat_end_auction()     asm "<b 124 word repeat_end_auction| $, b> <s PUSHSLICE";
+slice msg::emergency_message()      asm "<b 124 word emergency_message| $, b> <s PUSHSLICE";
