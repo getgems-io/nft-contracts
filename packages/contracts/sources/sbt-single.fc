@@ -160,17 +160,22 @@ global int storage::nonce;
     load_data();
 
     int op = in_msg_body~load_uint(32);
-    int query_id = in_msg_body~load_uint(64);
 
     if (flags & 1) { ;; route all prove_ownership bounced messages to owner
+      ;; first op was 0xffffffff, because of bounced, now we need to read real one
+      op = in_msg_body~load_uint(32);
+      int query_id = in_msg_body~load_uint(64);
+
       if (op == op::verify_ownership()) {
         var msg = begin_cell().store_slice(in_msg_body);
 
         ;; mode 64 = carry all the remaining value of the inbound message
-        send_msg(flag::regular() + flag::bounced(), storage::owner_address, 0, op::verify_ownership(), query_id, msg, 64);
+        send_msg(flag::regular(), storage::owner_address, 0, op::verify_ownership_bounced(), query_id, msg, 64);
       }
       return ();
     }
+
+    int query_id = in_msg_body~load_uint(64);
 
     if (op == op::transfer()) {
       throw(403);
@@ -208,7 +213,7 @@ global int storage::nonce;
       }
 
       ;; mode 64 = carry all the remaining value of the inbound message
-      send_msg(flag::regular() + flag::bounce(), dest, 0, op::verify_ownership(), query_id, msg, 64);
+      send_msg(flag::regular() | flag::bounce(), dest, 0, op::verify_ownership(), query_id, msg, 64);
       return ();
     }
     if (op == op::transfer_editorship()) {

@@ -73,7 +73,8 @@ export const OperationCodes = {
     TransferEditorship: 0x1c04412a,
     PullOwnership: 0x205e9c7b,
     ProveOwnership: 0x38061b82,
-    VerifyOwnership: 0x01b628aa
+    VerifyOwnership: 0x01b628aa,
+    VerifyOwnershipBounced: 0x81b628aa
 }
 
 export const Queries = {
@@ -121,9 +122,24 @@ export const Queries = {
 
         return msgBody
     },
-    verifyOwnership: (params: { queryId?: number, id: number, to: Address, data: Cell }) => {
+    verifyOwnership: (params: { queryId?: number, id: number, to: Address, data: Cell }, bounced?: boolean) => {
         let msgBody = new Cell()
+        if (bounced === true) {
+            msgBody.bits.writeUint(0xffffffff, 32)
+        }
         msgBody.bits.writeUint(OperationCodes.VerifyOwnership, 32)
+        msgBody.bits.writeUint(params.queryId || 0, 64)
+        msgBody.bits.writeUint(params.id, 256)
+        msgBody.bits.writeAddress(params.to)
+        msgBody.refs.push(params.data)
+        msgBody.bits.writeBit(true)
+        msgBody.refs.push(beginCell().endCell())
+
+        return msgBody
+    },
+    verifyOwnershipBounced: (params: { queryId?: number, id: number, to: Address, data: Cell }) => {
+        let msgBody = new Cell()
+        msgBody.bits.writeUint(OperationCodes.VerifyOwnershipBounced, 32)
         msgBody.bits.writeUint(params.queryId || 0, 64)
         msgBody.bits.writeUint(params.id, 256)
         msgBody.bits.writeAddress(params.to)

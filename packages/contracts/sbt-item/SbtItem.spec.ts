@@ -350,7 +350,7 @@ describe('sbt item smc', () => {
                     id: 777,
                     to: defaultConfig.ownerAddress,
                     data: dataCell,
-                }))
+                }, true))
             })
         }))
 
@@ -366,7 +366,7 @@ describe('sbt item smc', () => {
         response.readBit()
         let data = response.readRef()
 
-        expect(op).toEqual(OperationCodes.VerifyOwnership)
+        expect(op).toEqual(OperationCodes.VerifyOwnershipBounced)
         expect(queryId).toEqual(0)
         expect(index).toEqual(777)
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
@@ -750,7 +750,7 @@ describe('single sbt', () => {
                     id: 777,
                     to: defaultConfig.ownerAddress,
                     data: dataCell,
-                }))
+                }, true))
             })
         }))
 
@@ -766,7 +766,7 @@ describe('single sbt', () => {
         response.readBit()
         let data = response.readRef()
 
-        expect(op).toEqual(OperationCodes.VerifyOwnership)
+        expect(op).toEqual(OperationCodes.VerifyOwnershipBounced)
         expect(queryId).toEqual(0)
         expect(index).toEqual(777)
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
