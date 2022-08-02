@@ -27,39 +27,39 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
 ;;  uint64 nonce
 ;;
 
-global int index;
+global int storage::index;
 global int init?;
-global slice collection_address;
-global slice owner_address;
-global cell content;
-global int pub_key;
-global int nonce;
+global slice storage::collection_address;
+global slice storage::owner_address;
+global cell storage::content;
+global int storage::pub_key;
+global int storage::nonce;
 
 () load_data() impure {
     slice ds = get_data().begin_parse();
 
-    index              = ds~load_uint(64);
-    collection_address = ds~load_msg_addr();
-    init?              = false;
+    storage::index              = ds~load_uint(64);
+    storage::collection_address = ds~load_msg_addr();
+    init?                       = false;
 
     if (ds.slice_bits() > 0) {
-      init?         = true;
-      owner_address = ds~load_msg_addr();
-      content       = ds~load_ref();
-      pub_key       = ds~load_uint(256);
-      nonce         = ds~load_uint(64);
+      init?                  = true;
+      storage::owner_address = ds~load_msg_addr();
+      storage::content       = ds~load_ref();
+      storage::pub_key       = ds~load_uint(256);
+      storage::nonce         = ds~load_uint(64);
     }
 }
 
 () store_data() impure {
     set_data(
         begin_cell()
-            .store_uint(index, 64)
-            .store_slice(collection_address)
-            .store_slice(owner_address)
-            .store_ref(content)
-            .store_uint(pub_key, 256)
-            .store_uint(nonce, 64)
+            .store_uint(storage::index, 64)
+            .store_slice(storage::collection_address)
+            .store_slice(storage::owner_address)
+            .store_ref(storage::content)
+            .store_uint(storage::pub_key, 256)
+            .store_uint(storage::nonce, 64)
             .end_cell()
     );
 }
@@ -82,8 +82,8 @@ global int nonce;
 
 () pull_ownership(int my_balance, slice sender_address, int query_id, slice in_msg_body, int fwd_fees) impure inline {
     slice signature = in_msg_body~load_ref().begin_parse().preload_bits(512);
-    throw_unless(401, check_signature(slice_hash(in_msg_body), signature, pub_key));
-    throw_if(409, nonce != in_msg_body~load_uint(64));
+    throw_unless(401, check_signature(slice_hash(in_msg_body), signature, storage::pub_key));
+    throw_if(409, storage::nonce != in_msg_body~load_uint(64));
 
     slice new_owner_address = in_msg_body~load_msg_addr();
     if (new_owner_address.slice_bits() > 2) {
@@ -108,7 +108,7 @@ global int nonce;
     throw_unless(402, rest_amount >= 0); ;; base sbt spends fixed amount of gas, will not check for response
 
     if (forward_amount) {
-      var msg = begin_cell().store_slice(owner_address).store_slice(in_msg_body);
+      var msg = begin_cell().store_slice(storage::owner_address).store_slice(in_msg_body);
 
       ;; mode 1 = paying fees, revert on errors
       send_msg(flag::regular(), new_owner_address, forward_amount, op::ownership_assigned(), query_id, msg, 1);
@@ -121,8 +121,8 @@ global int nonce;
     }
 
     randomize_lt();
-    owner_address = new_owner_address;
-    nonce = (query_id + rand(0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF;
+    storage::owner_address = new_owner_address;
+    storage::nonce = (query_id + rand(0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF;
     store_data();
 }
 
@@ -145,13 +145,13 @@ global int nonce;
     load_data();
 
     if (~ init?) {
-      throw_unless(405, equal_slices(collection_address, sender_address));
+      throw_unless(405, equal_slices(storage::collection_address, sender_address));
 
       randomize_lt();
-      owner_address = in_msg_body~load_msg_addr();
-      content       = in_msg_body~load_ref();
-      pub_key       = in_msg_body~load_uint(256);
-      nonce         = rand(0xFFFFFFFFFFFFFFFF);
+      storage::owner_address = in_msg_body~load_msg_addr();
+      storage::content       = in_msg_body~load_ref();
+      storage::pub_key       = in_msg_body~load_uint(256);
+      storage::nonce         = rand(0xFFFFFFFFFFFFFFFF);
 
       store_data();
       return ();
@@ -165,7 +165,7 @@ global int nonce;
         var msg = begin_cell().store_slice(in_msg_body);
 
         ;; mode 64 = carry all the remaining value of the inbound message
-        send_msg(flag::regular() + flag::bounced(), owner_address, 0, op::verify_ownership(), query_id, msg, 64);
+        send_msg(flag::regular() + flag::bounced(), storage::owner_address, 0, op::verify_ownership(), query_id, msg, 64);
       }
       return ();
     }
@@ -175,26 +175,26 @@ global int nonce;
     }
     if (op == op::pull_ownership()) {
       ;; if on null address = destroyed
-      throw_unless(404, owner_address.slice_bits() > 2);
+      throw_unless(404, storage::owner_address.slice_bits() > 2);
 
       pull_ownership(my_balance, sender_address, query_id, in_msg_body, fwd_fee);
       return ();
     }
     if (op == op::prove_ownership()) {
-      throw_unless(401, equal_slices(owner_address, sender_address));
+      throw_unless(401, equal_slices(storage::owner_address, sender_address));
 
       slice dest = in_msg_body~load_msg_addr();
       cell body = in_msg_body~load_ref();
       int with_content = in_msg_body~load_uint(1);
 
       var msg = begin_cell()
-        .store_uint(index, 256)
-        .store_slice(owner_address)
+        .store_uint(storage::index, 256)
+        .store_slice(storage::owner_address)
         .store_ref(body)
         .store_uint(with_content, 1);
 
       if (with_content != 0) {
-        msg = msg.store_ref(content);
+        msg = msg.store_ref(storage::content);
       }
 
       ;; mode 64 = carry all the remaining value of the inbound message
@@ -202,7 +202,7 @@ global int nonce;
       return ();
     }
     if (op == op::get_static_data()) {
-      var msg = begin_cell().store_uint(index, 256).store_slice(collection_address);
+      var msg = begin_cell().store_uint(storage::index, 256).store_slice(storage::collection_address);
 
       ;; mode 64 = carry all the remaining value of the inbound message
       send_msg(flag::regular(), sender_address, 0, op::report_static_data(), query_id, msg, 64);
@@ -217,15 +217,15 @@ global int nonce;
 
 (int, int, slice, slice, cell) get_nft_data() method_id {
   load_data();
-  return (init?, index, collection_address, owner_address, content);
+  return (init?, storage::index, storage::collection_address, storage::owner_address, storage::content);
 }
 
 int get_nonce() method_id {
   load_data();
-  return nonce;
+  return storage::nonce;
 }
 
 int get_public_key() method_id {
   load_data();
-  return pub_key;
+  return storage::pub_key;
 }
