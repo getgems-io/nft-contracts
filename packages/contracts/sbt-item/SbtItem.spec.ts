@@ -110,7 +110,6 @@ describe('sbt item smc', () => {
                     nonce: 2,
                     key: privateKey,
                     newOwner,
-                    forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
                 }))
             })
@@ -132,7 +131,6 @@ describe('sbt item smc', () => {
                     nonce: 1,
                     key: privateKey2,
                     newOwner,
-                    forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
                 }))
             })
@@ -154,7 +152,6 @@ describe('sbt item smc', () => {
                     nonce: 1,
                     key: privateKey,
                     newOwner,
-                    forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
                 }))
             })
@@ -176,7 +173,6 @@ describe('sbt item smc', () => {
                     nonce: 1,
                     key: privateKey,
                     newOwner,
-                    forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
                 }))
             })
@@ -207,7 +203,6 @@ describe('sbt item smc', () => {
                 body: new CellMessage(Queries.pullOwnership({
                     nonce: 1,
                     key: privateKey,
-                    forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
                 }))
             })
@@ -510,7 +505,6 @@ describe('single sbt', () => {
                     nonce: 2,
                     key: privateKey,
                     newOwner,
-                    forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
                 }))
             })
@@ -532,7 +526,6 @@ describe('single sbt', () => {
                     nonce: 1,
                     key: privateKey2,
                     newOwner,
-                    forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
                 }))
             })
@@ -554,7 +547,6 @@ describe('single sbt', () => {
                     nonce: 1,
                     key: privateKey,
                     newOwner,
-                    forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
                 }))
             })
@@ -576,7 +568,6 @@ describe('single sbt', () => {
                     nonce: 1,
                     key: privateKey,
                     newOwner,
-                    forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
                 }))
             })
@@ -607,7 +598,6 @@ describe('single sbt', () => {
                 body: new CellMessage(Queries.pullOwnership({
                     nonce: 1,
                     key: privateKey,
-                    forwardAmount: toNano('0.01'),
                     responseTo: randomAddress()
                 }))
             })

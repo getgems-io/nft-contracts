@@ -18,10 +18,9 @@ For this it stores immutable public key of the owner, and to change owner's addr
 #### Changing owner's address
 If you migrated to newer version of wallet and you want to move your SBT to it, you could send transfer to SBT from new wallet with payload:
 ```
-pull_ownership#205e9c7b query_id:uint64 signature:^(signature:(bits 512)) 
+pull_ownership#03fdd6c9 query_id:uint64 signature:^(signature:(bits 512)) 
 sbt_nonce:uint64 new_owner:MsgAddress response_destination:MsgAddress 
-custom_payload:(Maybe ^Cell) forward_amount:(VarUInteger 16) 
-forward_payload:(Either Cell ^Cell)
+custom_payload:(Maybe ^Cell)
 ```
 1. To do it you first need to know current SBT's nonce, you can trigger `get_nonce` method of the SBT contract to get it.
 2. `new_owner` should equals your wallet from which you sends message.

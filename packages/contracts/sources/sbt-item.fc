@@ -94,12 +94,8 @@ global int storage::nonce;
 
     slice response_destination = in_msg_body~load_msg_addr();
     in_msg_body~load_int(1); ;; this sbt don't use custom_payload
-    int forward_amount = in_msg_body~load_coins();
 
     int rest_amount = my_balance - min_tons_for_storage();
-    if (forward_amount) {
-      rest_amount -= (forward_amount + fwd_fees);
-    }
     int need_response = response_destination.preload_uint(2) != 0; ;; if NOT addr_none: 00
     if (need_response) {
       rest_amount -= fwd_fees;
@@ -107,12 +103,6 @@ global int storage::nonce;
 
     throw_unless(402, rest_amount >= 0); ;; base sbt spends fixed amount of gas, will not check for response
 
-    if (forward_amount) {
-      var msg = begin_cell().store_slice(storage::owner_address).store_slice(in_msg_body);
-
-      ;; mode 1 = paying fees, revert on errors
-      send_msg(flag::regular(), new_owner_address, forward_amount, op::ownership_assigned(), query_id, msg, 1);
-    }
     if (need_response) {
       force_chain(response_destination);
 
@@ -135,12 +125,6 @@ global int storage::nonce;
     int flags = cs~load_uint(4);
 
     slice sender_address = cs~load_msg_addr();
-
-    cs~load_msg_addr(); ;; skip dst
-    cs~load_coins(); ;; skip value
-    cs~skip_bits(1); ;; skip extracurrency collection
-    cs~load_coins(); ;; skip ihr_fee
-    int fwd_fee = cs~load_coins(); ;; we use message fwd_fee for estimation of forward_payload costs
 
     load_data();
 
@@ -181,6 +165,12 @@ global int storage::nonce;
     if (op == op::pull_ownership()) {
       ;; if on null address = destroyed
       throw_unless(404, storage::owner_address.slice_bits() > 2);
+
+      cs~load_msg_addr(); ;; skip dst
+      cs~load_coins(); ;; skip value
+      cs~skip_bits(1); ;; skip extracurrency collection
+      cs~load_coins(); ;; skip ihr_fee
+      int fwd_fee = cs~load_coins(); ;; we use message fwd_fee for estimation of response costs
 
       pull_ownership(my_balance, sender_address, query_id, in_msg_body, fwd_fee);
       return ();

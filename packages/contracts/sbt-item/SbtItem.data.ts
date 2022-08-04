@@ -71,7 +71,7 @@ export const OperationCodes = {
     getStaticDataResponse: 0x8b771735,
     EditContent: 0x1a0b9d51,
     TransferEditorship: 0x1c04412a,
-    PullOwnership: 0x205e9c7b,
+    PullOwnership: 0x03fdd6c9,
     ProveOwnership: 0x38061b82,
     VerifyOwnership: 0x01b628aa,
     VerifyOwnershipBounced: 0x81b628aa
@@ -90,7 +90,7 @@ export const Queries = {
 
         return msgBody
     },
-    pullOwnership: (params: { queryId?: number, nonce: number, key: KeyObject, newOwner?: Address, responseTo?: Address, forwardAmount?: BN }) => {
+    pullOwnership: (params: { queryId?: number, nonce: number, key: KeyObject, newOwner?: Address, responseTo?: Address }) => {
         let msgBody = new Cell()
         msgBody.bits.writeUint(OperationCodes.PullOwnership, 32)
         msgBody.bits.writeUint(params.queryId || 0, 64)
@@ -100,8 +100,6 @@ export const Queries = {
         msgPayload.bits.writeAddress(params.newOwner || null)
         msgPayload.bits.writeAddress(params.responseTo || null)
         msgPayload.bits.writeBit(false) // no custom payload
-        msgPayload.bits.writeCoins(params.forwardAmount || 0)
-        msgPayload.bits.writeBit(0) // no forward_payload yet
 
         let signCell = new Cell()
         let signature = sign(null, msgPayload.hash(), params.key);
