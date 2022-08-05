@@ -1,4 +1,4 @@
-s# SBT
+# SBT
 Soul bound token is a special kind of NFT which can be transferred only between it owner's accounts.
 For this it stores immutable public key of the owner, and to change owner's address it is needed to send transfer from new address with signature in payload.
 
