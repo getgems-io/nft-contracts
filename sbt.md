@@ -11,7 +11,7 @@ custom_payload:(Maybe ^Cell)
 ```
 1. To do it you first need to know current SBT's nonce, you can trigger `get_nonce` method of the SBT contract to get it.
 2. `new_owner` should equals your wallet from which you sends message.
-3. Then you need to sign `sbt_nonce:uint64 new_owner:MsgAddress response_destination:MsgAddress custom_payload:(Maybe ^Cell) forward_amount:(VarUInteger 16) forward_payload:(Either Cell ^Cell)` this part of the message and put signature as first reference.
+3. Then you need to sign `sbt_nonce:uint64 new_owner:MsgAddress response_destination:MsgAddress custom_payload:(Maybe ^Cell)` this part of the message and put signature as first reference.
 4. Now you can send this message as internal to SBT and owner will be changed to your new wallet. 
 
 It is also possible to destroy SBT by setting `new_owner` to null address, after that, owner's address cannot be changed anymore.
@@ -83,7 +83,7 @@ slice calculate_sbt_address(slice collection_addr, cell sbt_item_code, int wc, i
     int with_content = in_msg~load_uint(1);
     if (with_content != 0) {
         cell sbt_content = in_msg~load_ref();
-    }
+    }s
 
     ;;
     ;; sbt verified, do something
