@@ -74,7 +74,7 @@ export const OperationCodes = {
     PullOwnership: 0x03fdd6c9,
     ProveOwnership: 0x38061b82,
     VerifyOwnership: 0x01b628aa,
-    VerifyOwnershipBounced: 0x81b628aa
+    VerifyOwnershipBounced: 0x450cc71b
 }
 
 export const Queries = {
