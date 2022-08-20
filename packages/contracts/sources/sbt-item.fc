@@ -2,18 +2,6 @@
 ;;  TON SBT Item Smart Contract
 ;;
 
-{-
-
-    NOTE that this tokens can be transferred within the same workchain.
-
-    This is suitable for most tokens, if you need tokens transferable between workchains there are two solutions:
-
-    1) use more expensive but universal function below to calculate message forward fee for arbitrary destination (see `misc/forward-fee-calc.cs`)
-
-    2) use token holder proxies in target workchain (that way even 'non-universal' token can be used from any workchain)
-
--}
-
 int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
 
 ;;
