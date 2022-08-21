@@ -17,39 +17,47 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
 global slice storage::editor_address;
 global slice storage::owner_address;
 global cell storage::content;
+global slice storage::authority_address;
 global int storage::pub_key;
 global int storage::nonce;
 
 () load_data() impure {
     slice ds = get_data().begin_parse();
 
-    storage::owner_address  = ds~load_msg_addr();
-    storage::editor_address = ds~load_msg_addr();
-    storage::content        = ds~load_ref();
-    storage::pub_key        = ds~load_uint(256);
-    storage::nonce          = ds~load_uint(64);
+    storage::owner_address     = ds~load_msg_addr();
+    storage::editor_address    = ds~load_msg_addr();
+    storage::content           = ds~load_ref();
+    storage::authority_address = ds~load_msg_addr();
+
+    var owner_data = ds~load_ref().begin_parse();
+
+    storage::pub_key = owner_data~load_uint(256);
+    storage::nonce   = owner_data~load_uint(64);
 }
 
 () store_data() impure {
     set_data(
-        begin_cell()
-            .store_slice(storage::owner_address)
-            .store_slice(storage::editor_address)
-            .store_ref(storage::content)
-            .store_uint(storage::pub_key, 256)
-            .store_uint(storage::nonce, 64)
-            .end_cell()
+            begin_cell()
+                    .store_slice(storage::owner_address)
+                    .store_slice(storage::editor_address)
+                    .store_ref(storage::content)
+                    .store_slice(storage::authority_address)
+                    .store_ref(begin_cell()
+                            .store_uint(storage::pub_key, 256)
+                            .store_uint(storage::nonce, 64)
+                            .end_cell())
+                    .end_cell()
     );
 }
 
 () send_msg(int flag, slice to_address, int amount, int op, int query_id, builder payload, int send_mode) impure inline {
     var msg = begin_cell()
-        .store_uint(flag, 6)
-        .store_slice(to_address)
-        .store_coins(amount)
-        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-        .store_uint(op, 32)
-        .store_uint(query_id, 64);
+            .store_uint(flag, 6)
+            .store_slice(to_address)
+            .store_coins(amount)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_uint(op, 32)
+            .store_uint(query_id, 64);
 
     if (~ builder_null?(payload)) {
         msg = msg.store_builder(payload);
@@ -64,10 +72,6 @@ global int storage::nonce;
     throw_if(409, storage::nonce != in_msg_body~load_uint(64));
 
     slice new_owner_address = in_msg_body~load_msg_addr();
-    if (new_owner_address.slice_bits() > 2) {
-        force_chain(new_owner_address);
-    }
-
     throw_unless(403, equal_slices(sender_address, new_owner_address) | equal_slices(null_addr(), new_owner_address));
 
     slice response_destination = in_msg_body~load_msg_addr();
@@ -76,17 +80,17 @@ global int storage::nonce;
     int rest_amount = my_balance - min_tons_for_storage();
     int need_response = response_destination.preload_uint(2) != 0; ;; if NOT addr_none: 00
     if (need_response) {
-      rest_amount -= fwd_fees;
+        rest_amount -= fwd_fees;
     }
 
     ;; base sbt spends fixed amount of gas, will not check for response
     throw_unless(402, rest_amount >= 0);
 
     if (need_response) {
-      force_chain(response_destination);
+        force_chain(response_destination);
 
-      ;; mode 1 = paying fees, revert on errors
-      send_msg(flag::regular(), response_destination, rest_amount, op::excesses(), query_id, null(), 1);
+        ;; mode 1 = paying fees, revert on errors
+        send_msg(flag::regular(), response_destination, rest_amount, op::excesses(), query_id, null(), 1);
     }
 
     randomize_lt();
@@ -106,26 +110,26 @@ global int storage::nonce;
 
     int rest_amount = my_balance - min_tons_for_storage();
     if (forward_amount) {
-      rest_amount -= (forward_amount + fwd_fees);
+        rest_amount -= (forward_amount + fwd_fees);
     }
     int need_response = response_destination.preload_uint(2) != 0; ;; if NOT addr_none: 00
     if (need_response) {
-      rest_amount -= fwd_fees;
+        rest_amount -= fwd_fees;
     }
 
     throw_unless(402, rest_amount >= 0); ;; base sbt spends fixed amount of gas, will not check for response
 
     if (forward_amount) {
-      var msg = begin_cell().store_slice(storage::editor_address).store_slice(in_msg_body);
+        var msg = begin_cell().store_slice(storage::editor_address).store_slice(in_msg_body);
 
-      ;; mode 1 = paying fees, revert on error
-      send_msg(flag::regular(), new_editor_address, forward_amount, op::editorship_assigned(), query_id, msg, 1);
+        ;; mode 1 = paying fees, revert on error
+        send_msg(flag::regular(), new_editor_address, forward_amount, op::editorship_assigned(), query_id, msg, 1);
     }
     if (need_response) {
-      force_chain(response_destination);
+        force_chain(response_destination);
 
-      ;; mode 1 = paying fees, revert on errors
-      send_msg(flag::regular(), response_destination, rest_amount, op::excesses(), query_id, null(), 1);
+        ;; mode 1 = paying fees, revert on errors
+        send_msg(flag::regular(), response_destination, rest_amount, op::excesses(), query_id, null(), 1);
     }
 
     storage::editor_address = new_editor_address;
@@ -146,17 +150,17 @@ global int storage::nonce;
     int op = in_msg_body~load_uint(32);
 
     if (flags & 1) { ;; route all prove_ownership bounced messages to owner
-      ;; first op was 0xffffffff, because of bounced, now we need to read real one
-      op = in_msg_body~load_uint(32);
-      int query_id = in_msg_body~load_uint(64);
+        ;; first op was 0xffffffff, because of bounced, now we need to read real one
+        op = in_msg_body~load_uint(32);
+        int query_id = in_msg_body~load_uint(64);
 
-      if (op == op::verify_ownership()) {
-        var msg = begin_cell().store_slice(in_msg_body);
+        if (op == op::verify_ownership()) {
+            var msg = begin_cell().store_slice(in_msg_body);
 
-        ;; mode 64 = carry all the remaining value of the inbound message
-        send_msg(flag::regular(), storage::owner_address, 0, op::verify_ownership_bounced(), query_id, msg, 64);
-      }
-      return ();
+            ;; mode 64 = carry all the remaining value of the inbound message
+            send_msg(flag::regular(), storage::owner_address, 0, op::verify_ownership_bounced(), query_id, msg, 64);
+        }
+        return ();
     }
 
     cs~load_msg_addr(); ;; skip dst
@@ -168,8 +172,8 @@ global int storage::nonce;
     int query_id = in_msg_body~load_uint(64);
 
     if (op == op::transfer()) {
-      throw(403);
-      return ();
+        throw(403);
+        return ();
     }
     if (op == op::get_static_data()) {
         var msg = begin_cell().store_uint(0, 256).store_slice(null_addr());
@@ -179,32 +183,32 @@ global int storage::nonce;
         return ();
     }
     if (op == op::pull_ownership()) {
-      ;; if on null address = destroyed
-      throw_unless(404, storage::owner_address.slice_bits() > 2);
+        ;; if on null address = destroyed
+        throw_unless(404, storage::owner_address.slice_bits() > 2);
 
-      pull_ownership(my_balance, sender_address, query_id, in_msg_body, fwd_fee);
-      return ();
+        pull_ownership(my_balance, sender_address, query_id, in_msg_body, fwd_fee);
+        return ();
     }
     if (op == op::prove_ownership()) {
-      throw_unless(401, equal_slices(storage::owner_address, sender_address));
+        throw_unless(401, equal_slices(storage::owner_address, sender_address));
 
-      slice dest = in_msg_body~load_msg_addr();
-      cell body = in_msg_body~load_ref();
-      int with_content = in_msg_body~load_uint(1);
+        slice dest = in_msg_body~load_msg_addr();
+        cell body = in_msg_body~load_ref();
+        int with_content = in_msg_body~load_uint(1);
 
-      var msg = begin_cell()
-        .store_uint(0, 256)
-        .store_slice(storage::owner_address)
-        .store_ref(body)
-        .store_uint(with_content, 1);
+        var msg = begin_cell()
+                .store_uint(0, 256)
+                .store_slice(storage::owner_address)
+                .store_ref(body)
+                .store_uint(with_content, 1);
 
-      if (with_content != 0) {
-        msg = msg.store_ref(storage::content);
-      }
+        if (with_content != 0) {
+            msg = msg.store_ref(storage::content);
+        }
 
-      ;; mode 64 = carry all the remaining value of the inbound message
-      send_msg(flag::regular() | flag::bounce(), dest, 0, op::verify_ownership(), query_id, msg, 64);
-      return ();
+        ;; mode 64 = carry all the remaining value of the inbound message
+        send_msg(flag::regular() | flag::bounce(), dest, 0, op::verify_ownership(), query_id, msg, 64);
+        return ();
     }
     if (op == op::transfer_editorship()) {
         transfer_editorship(my_balance, sender_address, query_id, in_msg_body, fwd_fee);
@@ -215,6 +219,25 @@ global int storage::nonce;
         storage::content = in_msg_body~load_ref();
         store_data();
         return ();
+    }
+    if (op == op::destroy()) {
+        throw_unless(401, equal_slices(storage::owner_address, sender_address));
+
+        storage::owner_address = null_addr();
+        storage::pub_key = 0;
+        store_data();
+        return ();
+    }
+    if (op == op::revoke()) {
+        throw_unless(401, equal_slices(storage::authority_address, sender_address));
+
+        storage::owner_address = null_addr();
+        storage::pub_key = 0;
+        store_data();
+        return ();
+    }
+    if (op == op::transfer()) {
+        throw(403);
     }
     throw(0xffff);
 }
@@ -234,11 +257,16 @@ slice get_editor() method_id {
 }
 
 int get_nonce() method_id {
-  load_data();
-  return storage::nonce;
+    load_data();
+    return storage::nonce;
 }
 
 int get_public_key() method_id {
-  load_data();
-  return storage::pub_key;
+    load_data();
+    return storage::pub_key;
+}
+
+slice get_authority_address() method_id {
+    load_data();
+    return storage::authority_address;
 }
