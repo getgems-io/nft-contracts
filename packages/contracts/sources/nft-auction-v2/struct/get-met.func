@@ -1,0 +1,34 @@
+;; 1  2    3    4      5      6      7    8      9    10     11   12   13     14   15   16   17   18   19   20
+(int, int, int, slice, slice, slice, int, slice, int, slice, int, int, slice, int, int, int, int, int, int, int) get_sale_data() method_id {
+    init_data();
+
+    var (
+            mp_fee_addr,
+            mp_fee_factor,
+            mp_fee_base,
+            royalty_fee_addr,
+            royalty_fee_factor,
+            royalty_fee_base
+    ) = get_fees();
+
+    return (
+            0x415543, ;; 1 nft aucion ("AUC")
+            end?, ;; 2
+            end_time, ;; 3
+            mp_addr, ;; 4
+            nft_addr, ;; 5
+            nft_owner, ;; 6
+            last_bid, ;; 7
+            last_member, ;; 8
+            min_step, ;; 9
+            mp_fee_addr, ;; 10
+            mp_fee_factor, mp_fee_base, ;; 11, 12
+            royalty_fee_addr, ;; 13
+            royalty_fee_factor, royalty_fee_base, ;; 14, 15
+            max_bid, ;; 16
+            min_bid, ;; 17
+            created_at?, ;; 18
+            last_bid_at, ;; 19
+            is_canceled? ;; 20
+    );
+}

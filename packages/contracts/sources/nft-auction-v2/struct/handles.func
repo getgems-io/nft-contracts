@@ -1,0 +1,136 @@
+{-
+    SHOULD
+    [+] check init auction or not
+    [+] check op
+    [+] change nft owner
+    [+] change auction status
+-}
+() handle::try_init_auction(slice sender_addr, slice in_msg_body) impure inline_ref {
+    throw_if(exit::auction_init(), nft_owner.slice_bits() > 2); ;; throw if auction already init
+    throw_unless(exit::no_transfer(), in_msg_body~load_uint(32) == op::ownership_assigned()); ;; throw if it`s not ownership assigned
+    in_msg_body~skip_bits(64); ;; query id
+    nft_owner = in_msg_body~load_msg_addr();
+    end? = false;
+    activated? = true;
+    pack_data();
+}
+
+
+() handle::cancel(slice sender_addr) impure inline_ref {
+    builder nft_transfer_body = begin_cell()
+            .store_uint(op::transfer(), 32)
+            .store_uint(cur_lt(), 64) ;; query id
+            .store_slice(nft_owner) ;; return nft no creator
+            .store_slice(sender_addr) ;; response_destination
+            .store_uint(0, 1) ;; custom payload
+            .store_coins(0) ;; forward amount
+            .store_uint(0, 1); ;; forward payload
+
+    builder nft_return_msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_slice(nft_addr)
+            .store_coins(0)
+            .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_ref(nft_transfer_body.end_cell());
+
+    raw_reserve(1000000, 0); ;; reserve some bebras  🐈
+
+    send_raw_message(nft_return_msg.end_cell(), 128);
+    end? = true;
+    is_canceled? = true;
+    pack_data();
+}
+
+() handle::end_auction(slice sender_addr) impure inline_ref {
+    if (last_bid == 0) { ;; just return nft
+        builder nft_transfer_body = begin_cell()
+                .store_uint(op::transfer(), 32)
+                .store_uint(cur_lt(), 64) ;; query id
+                .store_slice(nft_owner) ;; owner who create auction
+                .store_slice(sender_addr) ;; response_destination
+                .store_uint(0, 1) ;; custom payload
+                .store_coins(0) ;; forward amount
+                .store_uint(0, 1); ;; forward payload
+
+        builder nft_return_msg = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(nft_addr)
+                .store_coins(0)
+                .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                .store_ref(nft_transfer_body.end_cell());
+
+        raw_reserve(1000000, 0); ;; reserve some bebras  🐈
+
+        send_raw_message(nft_return_msg.end_cell(), 128);
+    } else {
+        var (
+                mp_fee_addr,
+                mp_fee_factor,
+                mp_fee_base,
+                royalty_fee_addr,
+                royalty_fee_factor,
+                royalty_fee_base
+        ) = get_fees();
+
+        int mp_fee = math::get_percent(last_bid, mp_fee_factor, mp_fee_base);
+
+        if (mp_fee > 0) {
+            builder mp_transfer = begin_cell()
+                    .store_uint(0x10, 6) ;; 0 (int_msg_info) 1 (ihr_disabled) 1 (no bounces) 00 (address)
+                    .store_slice(mp_fee_addr)
+                    .store_coins(mp_fee)
+                    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .store_uint(0, 32)
+                    .store_slice(msg::mp_msg());
+
+            send_raw_message(mp_transfer.end_cell(), 2);
+        }
+
+        int royalty_fee = math::get_percent(last_bid, royalty_fee_factor, royalty_fee_base);
+
+        if (royalty_fee > 0) {
+            builder royalty_transfer = begin_cell()
+                    .store_uint(0x10, 6) ;; 0 (int_msg_info) 1 (ihr_disabled) 1 (no bounces) 00 (address)
+                    .store_slice(royalty_fee_addr)
+                    .store_coins(royalty_fee)
+                    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .store_uint(0, 32)
+                    .store_slice(msg::royalty_msg());
+
+            send_raw_message(royalty_transfer.end_cell(), 2);
+        }
+
+        raw_reserve(1000000, 0); ;; reserve some bebras  🐈
+
+        int profit = last_bid - mp_fee - royalty_fee;
+        if (profit > 0) {
+            builder prev_owner_msg = begin_cell()
+                    .store_uint(0x10, 6) ;; 0 (int_msg_info) 1 (ihr_disabled) 1 (no bounces) 00 (address)
+                    .store_slice(nft_owner)
+                    .store_coins(profit)
+                    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .store_uint(0, 32)
+                    .store_slice(msg::profit_msg());
+
+            send_raw_message(prev_owner_msg.end_cell(), 2);
+        }
+
+        builder nft_transfer_body = begin_cell()
+                .store_uint(op::transfer(), 32)
+                .store_uint(cur_lt(), 64) ;; query id
+                .store_slice(last_member) ;; new owner
+                .store_slice(sender_addr) ;; response_destination
+                .store_uint(0, 1) ;; custom payload
+                .store_coins(10000000) ;; forward amount  0.01 ton
+                .store_uint(0, 1); ;; forward payload
+        builder nft_transfer = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(nft_addr)
+                .store_coins(0)
+                .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                .store_ref(nft_transfer_body.end_cell());
+        send_raw_message(nft_transfer.end_cell(), 128);
+    }
+    end? = true;
+    pack_data();
+}

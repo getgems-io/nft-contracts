@@ -5,7 +5,7 @@ import {buildNftAuctionDataCell, NftAuctionData} from "./NftAuction.data";
 import {NftAuctionCodeCell} from "./NftAuction.source";
 
 export class NftAuctionLocal {
-    private constructor(
+    protected constructor(
         public readonly contract: SmartContract,
         public readonly address: Address
     ) {
