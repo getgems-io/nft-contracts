@@ -1,0 +1,214 @@
+;;
+;;  TON SBT Item Smart Contract
+;;
+
+int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
+
+;;
+;;  Storage
+;;
+;;  uint64 index
+;;  MsgAddressInt collection_address
+;;  MsgAddressInt owner_address
+;;  cell content
+;;  uint256 pub_key
+;;  uint64 nonce
+;;
+
+global int storage::index;
+global int init?;
+global slice storage::collection_address;
+global slice storage::owner_address;
+global cell storage::content;
+global int storage::pub_key;
+global int storage::nonce;
+
+() load_data() impure {
+    slice ds = get_data().begin_parse();
+
+    storage::index              = ds~load_uint(64);
+    storage::collection_address = ds~load_msg_addr();
+    init?                       = false;
+
+    if (ds.slice_bits() > 0) {
+      init?                  = true;
+      storage::owner_address = ds~load_msg_addr();
+      storage::content       = ds~load_ref();
+      storage::pub_key       = ds~load_uint(256);
+      storage::nonce         = ds~load_uint(64);
+    }
+}
+
+() store_data() impure {
+    set_data(
+        begin_cell()
+            .store_uint(storage::index, 64)
+            .store_slice(storage::collection_address)
+            .store_slice(storage::owner_address)
+            .store_ref(storage::content)
+            .store_uint(storage::pub_key, 256)
+            .store_uint(storage::nonce, 64)
+            .end_cell()
+    );
+}
+
+() send_msg(int flag, slice to_address, int amount, int op, int query_id, builder payload, int send_mode) impure inline {
+  var msg = begin_cell()
+    .store_uint(flag, 6) ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool packages:MsgAddress
+    .store_slice(to_address)
+    .store_coins(amount)
+    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+    .store_uint(op, 32)
+    .store_uint(query_id, 64);
+
+  if (~ builder_null?(payload)) {
+    msg = msg.store_builder(payload);
+  }
+
+  send_raw_message(msg.end_cell(), send_mode);
+}
+
+() pull_ownership(int my_balance, slice sender_address, int query_id, slice in_msg_body, int fwd_fees) impure inline {
+    slice signature = in_msg_body~load_ref().begin_parse().preload_bits(512);
+    throw_unless(401, check_signature(slice_hash(in_msg_body), signature, storage::pub_key));
+    throw_if(409, storage::nonce != in_msg_body~load_uint(64));
+
+    slice new_owner_address = in_msg_body~load_msg_addr();
+    if (new_owner_address.slice_bits() > 2) {
+        force_chain(new_owner_address);
+    }
+
+    throw_unless(403, equal_slices(sender_address, new_owner_address) | equal_slices(null_addr(), new_owner_address));
+
+    slice response_destination = in_msg_body~load_msg_addr();
+    in_msg_body~load_int(1); ;; this sbt don't use custom_payload
+
+    int rest_amount = my_balance - min_tons_for_storage();
+    int need_response = response_destination.preload_uint(2) != 0; ;; if NOT addr_none: 00
+    if (need_response) {
+      rest_amount -= fwd_fees;
+    }
+
+    throw_unless(402, rest_amount >= 0); ;; base sbt spends fixed amount of gas, will not check for response
+
+    if (need_response) {
+      force_chain(response_destination);
+
+      ;; mode 1 = paying fees, revert on errors
+      send_msg(flag::regular(), response_destination, rest_amount, op::excesses(), query_id, null(), 1);
+    }
+
+    randomize_lt();
+    storage::owner_address = new_owner_address;
+    storage::nonce = (query_id + rand(0xFFFFFFFFFFFFFFFF)) & 0xFFFFFFFFFFFFFFFF;
+    store_data();
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { ;; ignore empty messages
+        return ();
+    }
+
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+
+    slice sender_address = cs~load_msg_addr();
+
+    load_data();
+
+    if (~ init?) {
+      throw_unless(405, equal_slices(storage::collection_address, sender_address));
+
+      randomize_lt();
+      storage::owner_address = in_msg_body~load_msg_addr();
+      storage::content       = in_msg_body~load_ref();
+      storage::pub_key       = in_msg_body~load_uint(256);
+      storage::nonce         = rand(0xFFFFFFFFFFFFFFFF);
+
+      store_data();
+      return ();
+    }
+
+    int op = in_msg_body~load_uint(32);
+
+    if (flags & 1) { ;; route all prove_ownership bounced messages to owner
+      ;; first op was 0xffffffff, because of bounced, now we need to read real one
+      op = in_msg_body~load_uint(32);
+      int query_id = in_msg_body~load_uint(64);
+
+      if (op == op::verify_ownership()) {
+        var msg = begin_cell().store_slice(in_msg_body);
+
+        ;; mode 64 = carry all the remaining value of the inbound message
+        send_msg(flag::regular(), storage::owner_address, 0, op::verify_ownership_bounced(), query_id, msg, 64);
+      }
+      return ();
+    }
+
+    int query_id = in_msg_body~load_uint(64);
+
+    if (op == op::transfer()) {
+      throw(403);
+    }
+    if (op == op::pull_ownership()) {
+      ;; if on null address = destroyed
+      throw_unless(404, storage::owner_address.slice_bits() > 2);
+
+      cs~load_msg_addr(); ;; skip dst
+      cs~load_coins(); ;; skip value
+      cs~skip_bits(1); ;; skip extracurrency collection
+      cs~load_coins(); ;; skip ihr_fee
+      int fwd_fee = cs~load_coins(); ;; we use message fwd_fee for estimation of response costs
+
+      pull_ownership(my_balance, sender_address, query_id, in_msg_body, fwd_fee);
+      return ();
+    }
+    if (op == op::prove_ownership()) {
+      throw_unless(401, equal_slices(storage::owner_address, sender_address));
+
+      slice dest = in_msg_body~load_msg_addr();
+      cell body = in_msg_body~load_ref();
+      int with_content = in_msg_body~load_uint(1);
+
+      var msg = begin_cell()
+        .store_uint(storage::index, 256)
+        .store_slice(storage::owner_address)
+        .store_ref(body)
+        .store_uint(with_content, 1);
+
+      if (with_content != 0) {
+        msg = msg.store_ref(storage::content);
+      }
+
+      ;; mode 64 = carry all the remaining value of the inbound message
+      send_msg(flag::regular() | flag::bounce(), dest, 0, op::verify_ownership(), query_id, msg, 64);
+      return ();
+    }
+    if (op == op::get_static_data()) {
+      var msg = begin_cell().store_uint(storage::index, 256).store_slice(storage::collection_address);
+
+      ;; mode 64 = carry all the remaining value of the inbound message
+      send_msg(flag::regular(), sender_address, 0, op::report_static_data(), query_id, msg, 64);
+      return ();
+    }
+    throw(0xffff);
+}
+
+;;
+;;  GET Methods
+;;
+
+(int, int, slice, slice, cell) get_nft_data() method_id {
+  load_data();
+  return (init?, storage::index, storage::collection_address, storage::owner_address, storage::content);
+}
+
+int get_nonce() method_id {
+  load_data();
+  return storage::nonce;
+}
+
+int get_public_key() method_id {
+  load_data();
+  return storage::pub_key;
+}
