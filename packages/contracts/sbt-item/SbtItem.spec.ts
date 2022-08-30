@@ -22,6 +22,7 @@ const privateKey2 = createPrivateKey("-----BEGIN PRIVATE KEY-----\n" +
 const pubKey = new BN("56001581745923382025098559417434591897568074235951937438714082547311791744987", 10)
 
 const OWNER_ADDRESS = randomAddress()
+const AUTHORITY_ADDRESS = randomAddress()
 const COLLECTION_ADDRESS = randomAddress()
 const EDITOR_ADDRESS = randomAddress()
 
@@ -30,6 +31,7 @@ const defaultConfig: SbtItemData = {
     index: 777,
     collectionAddress: COLLECTION_ADDRESS,
     ownerAddress: OWNER_ADDRESS,
+    authorityAddress: AUTHORITY_ADDRESS,
     content: 'test',
     ownerPubKey: pubKey,
     nonce: 1
@@ -39,6 +41,7 @@ const singleConfig: SbtSingleData = {
     ownerAddress: OWNER_ADDRESS,
     editorAddress: EDITOR_ADDRESS,
     content: 'test_content',
+    authorityAddress: AUTHORITY_ADDRESS,
     ownerPubKey: pubKey,
     nonce: 1
 }
@@ -191,20 +194,15 @@ describe('sbt item smc', () => {
         expect( await sbt.getPubKey()).toEqual(pubKey)
     })
 
-    it('should destroy pull ownership', async () => {
+    it('should destroy', async () => {
         let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
-        let newOwner = randomAddress()
         let res = await sbt.contract.sendInternalMessage(new InternalMessage({
             to: sbt.address,
-            from: newOwner,
+            from: defaultConfig.ownerAddress,
             value: toNano(1),
             bounce: false,
             body: new CommonMessageInfo({
-                body: new CellMessage(Queries.pullOwnership({
-                    nonce: 1,
-                    key: privateKey,
-                    responseTo: randomAddress()
-                }))
+                body: new CellMessage(Queries.destroy({}))
             })
         }))
 
@@ -216,9 +214,60 @@ describe('sbt item smc', () => {
         }
 
         expect(data.ownerAddress).toEqual(null)
+        expect( await sbt.getPubKey()).toEqual(new BN(0))
+    })
 
-        expect( await sbt.getNonce()).not.toEqual(new BN(1))
-        expect( await sbt.getPubKey()).toEqual(pubKey)
+    it('should revoke', async () => {
+        let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.authorityAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.revoke({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(0)
+
+        let data = await sbt.getNftData()
+        if (!data.isInitialized) {
+            throw new Error()
+        }
+
+        expect(data.ownerAddress).toEqual(null)
+        expect( await sbt.getPubKey()).toEqual(new BN(0))
+    })
+
+    it('should not revoke', async () => {
+        let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.ownerAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.revoke({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(401)
+    })
+
+    it('should not destroy', async () => {
+        let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.authorityAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.destroy({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(401)
     })
 
     it('random guy prove ownership', async () => {
@@ -472,7 +521,7 @@ describe('single sbt', () => {
         expect(editorRes!.toFriendly()).toEqual(newEditor.toFriendly())
     })
 
-    it('should transfer', async () => {
+    it('should not transfer', async () => {
         let sbt = await SbtItemLocal.createSingle(singleConfig)
         let newOwner = randomAddress()
         let res = await sbt.contract.sendInternalMessage(new InternalMessage({
@@ -586,20 +635,15 @@ describe('single sbt', () => {
         expect( await sbt.getPubKey()).toEqual(pubKey)
     })
 
-    it('should destroy pull ownership', async () => {
+    it('should destroy', async () => {
         let sbt = await SbtItemLocal.createSingle(singleConfig)
-        let newOwner = randomAddress()
         let res = await sbt.contract.sendInternalMessage(new InternalMessage({
             to: sbt.address,
-            from: newOwner,
+            from: defaultConfig.ownerAddress,
             value: toNano(1),
             bounce: false,
             body: new CommonMessageInfo({
-                body: new CellMessage(Queries.pullOwnership({
-                    nonce: 1,
-                    key: privateKey,
-                    responseTo: randomAddress()
-                }))
+                body: new CellMessage(Queries.destroy({}))
             })
         }))
 
@@ -611,9 +655,60 @@ describe('single sbt', () => {
         }
 
         expect(data.ownerAddress).toEqual(null)
+        expect( await sbt.getPubKey()).toEqual(new BN(0))
+    })
 
-        expect( await sbt.getNonce()).not.toEqual(new BN(1))
-        expect( await sbt.getPubKey()).toEqual(pubKey)
+    it('should revoke', async () => {
+        let sbt = await SbtItemLocal.createSingle(singleConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.authorityAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.revoke({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(0)
+
+        let data = await sbt.getNftData()
+        if (!data.isInitialized) {
+            throw new Error()
+        }
+
+        expect(data.ownerAddress).toEqual(null)
+        expect( await sbt.getPubKey()).toEqual(new BN(0))
+    })
+
+    it('should not revoke', async () => {
+        let sbt = await SbtItemLocal.createSingle(singleConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.ownerAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.revoke({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(401)
+    })
+
+    it('should not destroy', async () => {
+        let sbt = await SbtItemLocal.createSingle(singleConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.authorityAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.destroy({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(401)
     })
 
     it('random guy prove ownership', async () => {

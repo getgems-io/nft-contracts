@@ -15,4 +15,6 @@ int op::editorship_assigned() asm "0x511a4463 PUSHINT";
 int op::pull_ownership() asm "0x03fdd6c9 PUSHINT";
 int op::verify_ownership() asm "0x01b628aa PUSHINT";
 int op::prove_ownership() asm "0x38061b82 PUSHINT";
-int op::verify_ownership_bounced() asm "0x81b628aa PUSHINT";
+int op::verify_ownership_bounced() asm "0x450cc71b PUSHINT";
+int op::destroy() asm "0x2124b0b9 PUSHINT";
+int op::revoke() asm "0x6a6f099e PUSHINT";
