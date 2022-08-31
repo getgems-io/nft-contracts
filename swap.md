@@ -74,10 +74,18 @@ commission#82bd8f2a query_id:uint64 = CommissionNotification;
 ```
 
 ##### Maintain
-In case of any issues, contract can be maintained by supervisor, he is eligible to send any transaction from the contract. 
+In case of any issues, contract can be maintained by supervisor, he is eligible to send any transaction from the contract.
 For example return stuck NFT to one of participants in case of problem.
 
 To make transaction from contract, supervisor should send message with schema:
 ```tl-b
 maintain#00000003 query_id:uint64 mode:uint8 msg:^Cell = Cancel;
+```
+
+##### Top up
+Useful for first deployment message or for some case, to trigger conditions check.
+
+To trigger conditions check, or to just add money to contract, anyone could send message with schema:
+```tl-b
+topup#00000004 query_id:uint64 = TopUp;
 ```

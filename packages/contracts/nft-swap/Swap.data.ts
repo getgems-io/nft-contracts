@@ -84,6 +84,7 @@ export const OperationCodes = {
     addCoins: 1,
     cancel: 2,
     maintain: 3,
+    topup: 4,
     transferCommission: 0x82bd8f2a,
     transferCancel: 0xb5188860,
     transferComplete: 0xef03d009,
@@ -140,6 +141,13 @@ export const Queries = {
         msgBody.bits.writeUint(params.queryId || 0, 64)
         msgBody.bits.writeUint(params.mode, 8)
         msgBody.refs.push(params.msg)
+
+        return msgBody
+    },
+    topup: (params: { queryId?: number}) => {
+        let msgBody = new Cell()
+        msgBody.bits.writeUint(OperationCodes.topup, 32)
+        msgBody.bits.writeUint(params.queryId || 0, 64)
 
         return msgBody
     },

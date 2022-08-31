@@ -663,6 +663,31 @@ describe('swap smc', () => {
 
         expect(res.exit_code).toEqual(401)
     })
+
+    it('should top up', async () => {
+        let cfg = Object.create(defaultConfig);
+        cfg.state = SwapState.Active
+        cfg.leftNft = [{addr:NFT1, sent: false},{addr:NFT3, sent: true}]
+        cfg.leftCommission = toNano("1.0")
+        cfg.leftCommissionGot = toNano("0.9")
+        cfg.rightNft = [{addr:NFT2, sent: true}]
+        cfg.rightCommission = toNano("1.0")
+        cfg.rightCommissionGot = cfg.rightCommission
+
+        let c = await SwapLocal.createFromConfig(cfg)
+
+        let res = await c.contract.sendInternalMessage(new InternalMessage({
+            to: c.address,
+            from: NFT4,
+            value: toNano("0.12"),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.topup({})),
+            })
+        }))
+
+        expect(res.exit_code).toEqual(0)
+    })
 })
 
 interface WantMsg {

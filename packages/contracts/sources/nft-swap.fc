@@ -5,6 +5,7 @@ int state::completed() asm "3 PUSHINT";
 int local_op::add_coins() asm "1 PUSHINT";
 int local_op::cancel() asm "2 PUSHINT";
 int local_op::maintain() asm "3 PUSHINT";
+int local_op::topup() asm "4 PUSHINT";
 
 int trade::completed() asm "0xef03d009 PUSHINT";
 int trade::canceled() asm "0xb5188860 PUSHINT";
@@ -264,6 +265,15 @@ int check_conditions() inline {
 
         var mode = in_msg~load_uint(8);
         return send_raw_message(in_msg~load_ref(), mode);
+    }
+
+    if (op == local_op::topup()) {
+        if ((state == state::active()) & (check_conditions() != 0)) {
+            complete(query_id);
+            save_data();
+        }
+
+        return ();
     }
 
     throw(0xffff);
