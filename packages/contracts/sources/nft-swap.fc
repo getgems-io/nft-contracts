@@ -141,6 +141,9 @@ int check_conditions() inline {
     right_nft.send_dict_nft(left_trader, query_id);
 
     raw_reserve(min_tons_for_storage_after_swap(), 0);
+    send_coins(1 + 2, left_trader, left_commission_got - left_commission, trade::completed(), query_id);
+    send_coins(1 + 2, right_trader, right_commission_got - right_commission, trade::completed(), query_id);
+
     send_coins(128 + 2, commission_gainer, 0, trade::commission(), query_id);
 }
 
@@ -151,8 +154,8 @@ int check_conditions() inline {
     right_nft.send_dict_nft(right_trader, query_id);
 
     raw_reserve(min_tons_for_storage_after_swap(), 0);
-    send_coins(2, left_trader, left_commission_got, trade::canceled(), query_id);
-    send_coins(2, right_trader, right_commission_got, trade::canceled(), query_id);
+    send_coins(1 + 2, left_trader, left_commission_got, trade::canceled(), query_id);
+    send_coins(1 + 2, right_trader, right_commission_got, trade::canceled(), query_id);
 
     send_coins(128 + 2, commission_gainer, 0, trade::commission(), query_id);
 }

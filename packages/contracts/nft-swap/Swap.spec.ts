@@ -301,6 +301,16 @@ describe('swap smc', () => {
         expect(res.exit_code).toEqual(0)
 
         checkActions(res.actionList,[{
+            to: LEFT,
+            amount: toNano("0.05"),
+            body: Queries.transferComplete({}),
+            mode: 3,
+        },{
+            to: RIGHT,
+            amount: toNano("0"),
+            body: Queries.transferComplete({}),
+            mode: 3,
+        },{
             to: NFT1,
             amount: new BN(0),
             body: NftQueries.transfer({newOwner: RIGHT}),
@@ -357,6 +367,16 @@ describe('swap smc', () => {
         expect(res.exit_code).toEqual(0)
 
         checkActions(res.actionList,[{
+            to: LEFT,
+            amount: toNano("0"),
+            body: Queries.transferComplete({}),
+            mode: 3,
+        },{
+            to: RIGHT,
+            amount: toNano("0"),
+            body: Queries.transferComplete({}),
+            mode: 3,
+        },{
             to: NFT1,
             amount: new BN(0),
             body: NftQueries.transfer({newOwner: RIGHT}),
@@ -544,12 +564,12 @@ describe('swap smc', () => {
             to: LEFT,
             amount: toNano("0.9"),
             body: Queries.transferCancel({}),
-            mode: 2,
+            mode: 3,
         },{
             to: RIGHT,
             amount: toNano("1"),
             body: Queries.transferCancel({}),
-            mode: 2,
+            mode: 3,
         },{
             to: NFT3,
             amount: new BN(0),
