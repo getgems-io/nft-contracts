@@ -43,11 +43,34 @@ but it is also possible to send it independently, using message with schema:
 add_coins#00000001 query_id:uint64 commission:Coins = AddCoins;
 ```
 
+##### Completion
+Swap will happen when all nft will be transferred and each participant's commission will be filled.
+
+On completion, each participant will receive transaction with return of amount of over-sent commission with schema:
+```tl-b
+completed#ef03d009 query_id:uint64 = CompletedNotification;
+```
+
+And commission address will receive transaction with the rest contract balance amount, except 0.001 TON for storage, with schema:
+```tl-b
+commission#82bd8f2a query_id:uint64 = CommissionNotification;
+```
+
 ##### Cancellation
 When contract is in active state and one of participants or supervisor decided to cancel exchange and get nft+commission back,
 he should send message with schema:
 ```tl-b
 cancel#00000002 query_id:uint64 = Cancel;
+```
+
+On cancellation, each participant will receive transaction with return of amount of sent commission, with schema:
+```tl-b
+canceled#b5188860 query_id:uint64 = CanceledNotification;
+```
+
+And commission address will receive transaction with the rest contract balance amount, except 0.001 TON for storage, with schema:
+```tl-b
+commission#82bd8f2a query_id:uint64 = CommissionNotification;
 ```
 
 ##### Maintain
