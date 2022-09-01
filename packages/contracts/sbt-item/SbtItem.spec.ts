@@ -275,7 +275,7 @@ describe('sbt item smc', () => {
         let someGuy = randomAddress()
 
         let dataCell = new Cell()
-        dataCell.bits.writeUint(777,16)
+        dataCell.bits.writeUint(888,16)
 
         let res = await sbt.contract.sendInternalMessage(new InternalMessage({
             to: sbt.address,
@@ -286,12 +286,32 @@ describe('sbt item smc', () => {
                 body: new CellMessage(Queries.proveOwnership({
                     to: randomAddress(),
                     data: dataCell,
-                    withContent: false
+                    withContent: true
                 }))
             })
         }))
 
-        expect(res.exit_code).toEqual(401)
+        expect(res.exit_code).toEqual(0)
+
+        let [responseMessage] = res.actionList as [SendMsgAction]
+        let response = responseMessage.message.body.beginParse()
+
+        let op = response.readUintNumber(32)
+        let queryId = response.readUintNumber(64)
+        let index = response.readUintNumber(256)
+        let owner = response.readAddress() as Address
+        let data = response.readRef()
+        let withCont = response.readBit()
+        let cont = response.readRef()
+
+
+        expect(op).toEqual(OperationCodes.VerifyOwnership)
+        expect(queryId).toEqual(0)
+        expect(index).toEqual(777)
+        expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
+        expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(withCont).toEqual(true)
+        expect(cont.readBuffer(4).toString()).toEqual('test')
     })
 
     it('should prove ownership with content', async () => {
@@ -716,7 +736,7 @@ describe('single sbt', () => {
         let someGuy = randomAddress()
 
         let dataCell = new Cell()
-        dataCell.bits.writeUint(777,16)
+        dataCell.bits.writeUint(888,16)
 
         let res = await sbt.contract.sendInternalMessage(new InternalMessage({
             to: sbt.address,
@@ -727,12 +747,32 @@ describe('single sbt', () => {
                 body: new CellMessage(Queries.proveOwnership({
                     to: randomAddress(),
                     data: dataCell,
-                    withContent: false,
+                    withContent: true,
                 }))
             })
         }))
 
-        expect(res.exit_code).toEqual(401)
+        expect(res.exit_code).toEqual(0)
+
+        let [responseMessage] = res.actionList as [SendMsgAction]
+        let response = responseMessage.message.body.beginParse()
+
+        let op = response.readUintNumber(32)
+        let queryId = response.readUintNumber(64)
+        let index = response.readUintNumber(256)
+        let owner = response.readAddress() as Address
+        let data = response.readRef()
+        let withCont =  response.readBit()
+        let cont = response.readRef()
+        cont.readBuffer(1) // skip chain tag
+
+        expect(op).toEqual(OperationCodes.VerifyOwnership)
+        expect(queryId).toEqual(0)
+        expect(index).toEqual(0)
+        expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
+        expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(withCont).toEqual(true)
+        expect(cont.readBuffer('test_content'.length).toString()).toEqual('test_content')
     })
 
     it('should prove ownership with content', async () => {
