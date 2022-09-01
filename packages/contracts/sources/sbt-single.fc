@@ -190,8 +190,6 @@ global int storage::nonce;
         return ();
     }
     if (op == op::prove_ownership()) {
-        throw_unless(401, equal_slices(storage::owner_address, sender_address));
-
         slice dest = in_msg_body~load_msg_addr();
         cell body = in_msg_body~load_ref();
         int with_content = in_msg_body~load_uint(1);
