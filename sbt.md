@@ -5,7 +5,7 @@ For this it stores immutable public key of the owner, and to change owner's addr
 #### Changing owner's address
 If you migrated to newer version of wallet and you want to move your SBT to it, you could send transfer to SBT from new wallet with payload:
 ```
-pull_ownership#03fdd6c9 query_id:uint64 signature:^(signature:(bits 512)) 
+pull_ownership#14726d45 query_id:uint64 signature:^(bits 512) 
 sbt_nonce:uint64 new_owner:MsgAddress response_destination:MsgAddress 
 custom_payload:(Maybe ^Cell)
 ```
@@ -24,12 +24,12 @@ this way target contract could know that you are owner of SBT which relates to e
 
 To use this functionality SBT owner's wallet can send transfer with this scheme to SBT:
 ```
-prove_ownership#38061b82 query_id:uint64 dest:MsgAddress 
+prove_ownership#5c9b0fb1 query_id:uint64 dest:MsgAddress 
 data:^Cell with_content:bool
 ```
 After that SBT will send transfer to `dest` with scheme:
 ```
-verify_ownership#01b628aa query_id:uint64 sbt_id:uint256 owner:MsgAddress 
+verify_ownership#a553079c query_id:uint64 sbt_id:uint256 owner:MsgAddress 
 data:^Cell content:(Maybe ^Cell)
 ```
 If something goes wrong and target contract not accepts message and it will be bounced back to SBT, SBT will proxy this bounce to owner, this way coins will not stuck on SBT.
@@ -37,7 +37,7 @@ If something goes wrong and target contract not accepts message and it will be b
 #### Verify SBT contract example
 
 ```C
-int op::verify_ownership() asm "0x01b628aa PUSHINT";
+int op::verify_ownership() asm "0xa553079c PUSHINT";
 
 int equal_slices (slice a, slice b) asm "SDEQ";
 
