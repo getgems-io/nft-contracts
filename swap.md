@@ -31,10 +31,10 @@ This schema needs to be serialized to contract data in StateInit and deployed to
 
 #### Exchange
 ##### NFT transfers
-After initialization, participants could transfer defined NFTs to swap contract address, together with 0.05 TON + desired commission amount in forward amount of transfer message. 
-0.05 TON is required to pay contract fees for transferring nft back in case of cancel, or to another side in case of complete. **If forward amount is below 0.05, NFT will be ignored!**
+After initialization, participants could transfer defined NFTs to swap contract address, together with 0.1 TON + desired commission amount in forward amount of transfer message. 
+0.1 TON is required to pay contract fees for transferring nft back in case of cancel, or to another side in case of complete. **If forward amount is below 0.1, NFT will be ignored!**
 
-In case if undesirable nft was transferred to contract, it will be transferred back to previous owner (if forward amount >= 0.05). The same is applicable to undesired contract state, when swap is cancelled and someone transfers nft.
+In case if undesirable nft was transferred to contract, it will be transferred back to previous owner (if forward amount >= 0.1). The same is applicable to undesired contract state, when swap is cancelled and someone transfers nft.
 
 ##### Commissions
 Normally, commission should be transferred in forward amount of nft transfer, 
@@ -50,6 +50,8 @@ On completion, each participant will receive transaction with return of amount o
 ```tl-b
 completed#ef03d009 query_id:uint64 = CompletedNotification;
 ```
+
+Sides will receive response from nft, with ~0.05 TON amount.
 
 And commission address will receive transaction with the rest contract balance amount, except 0.001 TON for storage, with schema:
 ```tl-b
@@ -67,6 +69,8 @@ On cancellation, each participant will receive transaction with return of amount
 ```tl-b
 canceled#b5188860 query_id:uint64 = CanceledNotification;
 ```
+
+Sides will receive response from their nft, with ~0.05 TON amount.
 
 And commission address will receive transaction with the rest contract balance amount, except 0.001 TON for storage, with schema:
 ```tl-b

@@ -11,7 +11,8 @@ int trade::completed() asm "0xef03d009 PUSHINT";
 int trade::canceled() asm "0xb5188860 PUSHINT";
 int trade::commission() asm "0x82bd8f2a PUSHINT";
 
-int min_tons_per_nft() asm "50000000 PUSHINT"; ;; 0.05 TON
+int nft_send_amount() asm "50000000 PUSHINT"; ;; 0.05 TON
+int min_tons_per_nft() asm "100000000 PUSHINT"; ;; 0.1 TON
 int min_tons_for_storage_after_swap() asm "1000000 PUSHINT"; ;; 0.001 TON
 
 global int state;
@@ -92,21 +93,24 @@ int check_conditions() inline {
             right_nft.check_nft() & (right_commission_got >= right_commission);
 }
 
-() send_nft(int mode, int nft, slice to, int query_id) impure inline {
+() send_nft(int mode, int amount, int nft, slice to, int query_id) impure inline {
     var msg = begin_cell()
             .store_uint(0x18, 6)
             .store_uint(2,2)
             .store_uint(0,9)
             .store_uint(nft,256)
-            .store_coins(0)
-            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-            .store_uint(op::transfer(), 32)
-            .store_uint(query_id, 64)
-            .store_slice(to)  ;; new_owner_address
-            .store_slice(null_addr())  ;; response_address
-            .store_int(0, 1)  ;; empty custom_payload
-            .store_coins(0)   ;; forward amount to new_owner_address
-            .store_int(0, 1); ;; empty forward_payload
+            .store_coins(amount)
+            .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_ref(begin_cell()
+                .store_uint(op::transfer(), 32)
+                .store_uint(query_id, 64)
+                .store_slice(to)  ;; new_owner_address
+                .store_slice(to)  ;; response_address
+                .store_int(0, 1)  ;; empty custom_payload
+                .store_coins(0)   ;; forward amount to new_owner_address
+                .store_int(0, 1) ;; empty forward_payload
+                .end_cell()
+            );
 
     send_raw_message(msg.end_cell(), mode);
 }
@@ -117,7 +121,7 @@ int check_conditions() inline {
         (key, slice data, int exists) = dict.udict_get_next?(256, key);
         if (exists) {
             if (data.preload_uint(1) == 1) {
-                send_nft(1, key, to, query_id);
+                send_nft(1, nft_send_amount(), key, to, query_id);
             }
         }
     } until (~ exists);
@@ -195,7 +199,7 @@ int check_conditions() inline {
         ;; state not active, return it back
         if (state != state::active()) {
             slice nft_old_owner_addr = in_msg~load_msg_addr();
-            send_nft(64, sender_id, nft_old_owner_addr, query_id);
+            send_nft(64, 0, sender_id, nft_old_owner_addr, query_id);
             return ();
         }
 
@@ -207,7 +211,7 @@ int check_conditions() inline {
         ;; unexpected nft, return it back
         if ((ok_left | ok_right) == 0) {
             slice nft_old_owner_addr = in_msg~load_msg_addr();
-            send_nft(64, sender_id, nft_old_owner_addr, query_id);
+            send_nft(64, 0, sender_id, nft_old_owner_addr, query_id);
             return ();
         }
 
