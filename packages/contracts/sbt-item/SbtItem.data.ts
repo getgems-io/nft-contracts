@@ -77,6 +77,7 @@ export function buildSingleSbtDataCell(data: SbtSingleData) {
 
 export const OperationCodes = {
     transfer: 0x5fcc3d14,
+    excesses: 0xd53276db,
     getStaticData: 0x2fcb26a2,
     getStaticDataResponse: 0x8b771735,
     EditContent: 0x1a0b9d51,

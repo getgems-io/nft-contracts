@@ -198,6 +198,9 @@ global int storage::nonce;
     if (op == op::destroy()) {
         throw_unless(401, equal_slices(storage::owner_address, sender_address));
 
+        raw_reserve(min_tons_for_storage(), 0);
+        send_msg(flag::regular(), sender_address, 0, op::excesses(), query_id, null(), 128);
+
         storage::owner_address = null_addr();
         storage::pub_key = 0;
         store_data();
