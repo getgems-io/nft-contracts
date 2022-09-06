@@ -61,17 +61,18 @@ global int storage::nonce;
 }
 
 () send_msg(int flag, slice to_address, int amount, int op, int query_id, builder payload, int send_mode) impure inline {
+    var body = begin_cell().store_uint(op, 32).store_uint(query_id, 64);
+    if (~ builder_null?(payload)) {
+        body = body.store_builder(payload);
+    }
+
     var msg = begin_cell()
-            .store_uint(flag, 6) ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool packages:MsgAddress
+            .store_uint(flag, 6)
             .store_slice(to_address)
             .store_coins(amount)
-            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-            .store_uint(op, 32)
+            .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_ref(body.end_cell())
             .store_uint(query_id, 64);
-
-    if (~ builder_null?(payload)) {
-        msg = msg.store_builder(payload);
-    }
 
     send_raw_message(msg.end_cell(), send_mode);
 }
@@ -174,6 +175,7 @@ global int storage::nonce;
 
         var msg = begin_cell()
                 .store_uint(storage::index, 256)
+                .store_slice(sender_address)
                 .store_slice(storage::owner_address)
                 .store_ref(body)
                 .store_uint(with_content, 1);

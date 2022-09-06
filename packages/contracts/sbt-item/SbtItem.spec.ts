@@ -299,6 +299,7 @@ describe('sbt item smc', () => {
         let op = response.readUintNumber(32)
         let queryId = response.readUintNumber(64)
         let index = response.readUintNumber(256)
+        let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
         let withCont = response.readBit()
@@ -308,6 +309,7 @@ describe('sbt item smc', () => {
         expect(op).toEqual(OperationCodes.VerifyOwnership)
         expect(queryId).toEqual(0)
         expect(index).toEqual(777)
+        expect(sender.toFriendly()).toEqual(someGuy.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
         expect(withCont).toEqual(true)
@@ -341,6 +343,7 @@ describe('sbt item smc', () => {
         let op = response.readUintNumber(32)
         let queryId = response.readUintNumber(64)
         let index = response.readUintNumber(256)
+        let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
         let withCont = response.readBit()
@@ -350,6 +353,7 @@ describe('sbt item smc', () => {
         expect(op).toEqual(OperationCodes.VerifyOwnership)
         expect(queryId).toEqual(0)
         expect(index).toEqual(777)
+        expect(sender.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
         expect(withCont).toEqual(true)
@@ -384,6 +388,7 @@ describe('sbt item smc', () => {
         let op = response.readUintNumber(32)
         let queryId = response.readUintNumber(64)
         let index = response.readUintNumber(256)
+        let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
         let withCont = response.readBit()
@@ -392,6 +397,7 @@ describe('sbt item smc', () => {
         expect(op).toEqual(OperationCodes.VerifyOwnership)
         expect(queryId).toEqual(0)
         expect(index).toEqual(777)
+        expect(sender.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
         expect(withCont).toEqual(false)
@@ -760,6 +766,7 @@ describe('single sbt', () => {
         let op = response.readUintNumber(32)
         let queryId = response.readUintNumber(64)
         let index = response.readUintNumber(256)
+        let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
         let withCont =  response.readBit()
@@ -769,6 +776,7 @@ describe('single sbt', () => {
         expect(op).toEqual(OperationCodes.VerifyOwnership)
         expect(queryId).toEqual(0)
         expect(index).toEqual(0)
+        expect(sender.toFriendly()).toEqual(someGuy.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
         expect(withCont).toEqual(true)
@@ -803,6 +811,7 @@ describe('single sbt', () => {
         let op = response.readUintNumber(32)
         let queryId = response.readUintNumber(64)
         let index = response.readUintNumber(256)
+        let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
         let withCont =  response.readBit()
@@ -812,6 +821,7 @@ describe('single sbt', () => {
         expect(op).toEqual(OperationCodes.VerifyOwnership)
         expect(queryId).toEqual(0)
         expect(index).toEqual(0)
+        expect(sender.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
         expect(withCont).toEqual(true)
@@ -846,6 +856,7 @@ describe('single sbt', () => {
         let op = response.readUintNumber(32)
         let queryId = response.readUintNumber(64)
         let index = response.readUintNumber(256)
+        let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
         let withCont =  response.readBit()
@@ -853,6 +864,7 @@ describe('single sbt', () => {
         expect(op).toEqual(OperationCodes.VerifyOwnership)
         expect(queryId).toEqual(0)
         expect(index).toEqual(0)
+        expect(sender.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
         expect(withCont).toEqual(false)
