@@ -30,9 +30,11 @@ export type SwapData = {
     supervisorAddress: Address
     commissionAddress: Address
     leftCommission: BN
-    leftCommissionGot: BN
+    leftAmount: BN
+    leftCoinsGot: BN
     rightCommission: BN
-    rightCommissionGot: BN
+    rightAmount: BN
+    rightCoinsGot: BN
 }
 
 export function buildSwapDataCell(data: SwapData) {
@@ -42,7 +44,8 @@ export function buildSwapDataCell(data: SwapData) {
     dataCell.bits.writeAddress(data.rightAddress)
 
     dataCell.bits.writeCoins(data.leftCommission)
-    dataCell.bits.writeCoins(data.leftCommissionGot)
+    dataCell.bits.writeCoins(data.leftAmount)
+    dataCell.bits.writeCoins(data.leftCoinsGot)
     dataCell.bits.writeBit(data.leftNft.length > 0)
 
     if (data.leftNft.length > 0) {
@@ -57,7 +60,8 @@ export function buildSwapDataCell(data: SwapData) {
     }
 
     dataCell.bits.writeCoins(data.rightCommission)
-    dataCell.bits.writeCoins(data.rightCommissionGot)
+    dataCell.bits.writeCoins(data.rightAmount)
+    dataCell.bits.writeCoins(data.rightCoinsGot)
     dataCell.bits.writeBit(data.rightNft.length > 0)
 
     if (data.rightNft.length > 0) {

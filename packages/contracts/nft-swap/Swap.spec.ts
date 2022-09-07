@@ -36,9 +36,11 @@ const defaultConfig: SwapData = {
     supervisorAddress: SUPERVISOR,
     commissionAddress: COMMISSION,
     leftCommission: toNano("0.1"),
-    leftCommissionGot: toNano("0"),
+    leftAmount: toNano("0"),
+    leftCoinsGot: toNano("0"),
     rightCommission: toNano("0.05"),
-    rightCommissionGot: toNano("0"),
+    rightAmount: toNano("0"),
+    rightCoinsGot: toNano("0"),
 }
 
 describe('swap smc', () => {
@@ -136,6 +138,66 @@ describe('swap smc', () => {
 
         let data = await c.getTradeState()
         expect(data.left_ok).toEqual(false)
+        expect(data.right_ok).toEqual(false)
+        expect(data.state).toEqual(SwapState.Active)
+    })
+
+    it('should accept nft + partial amount + full commission', async () => {
+        let cfg = Object.create(defaultConfig);
+        cfg.leftNft = [{addr:NFT1, sent: false}]
+        cfg.leftCommission = toNano("0.5")
+        cfg.leftAmount = toNano("1.0")
+        cfg.rightNft = [{addr:NFT2, sent: false}]
+
+        let c = await SwapLocal.createFromConfig(cfg)
+
+        let res = await c.contract.sendInternalMessage(new InternalMessage({
+            to: c.address,
+            from: NFT1,
+            value: toNano("1.5999"),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.nftOwnerAssigned({
+                    prevOwner: LEFT,
+                }))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(0)
+
+        let data = await c.getTradeState()
+        expect(data.leftGot.toNumber()).toEqual(toNano("1.4999").toNumber())
+        expect(data.left_ok).toEqual(false)
+        expect(data.right_ok).toEqual(false)
+        expect(data.state).toEqual(SwapState.Active)
+    })
+
+    it('should accept nft + full amount + full commission', async () => {
+        let cfg = Object.create(defaultConfig);
+        cfg.leftNft = [{addr:NFT1, sent: false}]
+        cfg.leftCommission = toNano("0.5")
+        cfg.leftAmount = toNano("1.0")
+        cfg.rightNft = [{addr:NFT2, sent: false}]
+
+        let c = await SwapLocal.createFromConfig(cfg)
+
+        let res = await c.contract.sendInternalMessage(new InternalMessage({
+            to: c.address,
+            from: NFT1,
+            value: toNano("1.6"),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.nftOwnerAssigned({
+                    prevOwner: LEFT,
+                }))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(0)
+
+        let data = await c.getTradeState()
+        expect(data.leftGot.toNumber()).toEqual(toNano("1.5").toNumber())
+        expect(data.left_ok).toEqual(true)
         expect(data.right_ok).toEqual(false)
         expect(data.state).toEqual(SwapState.Active)
     })
@@ -243,9 +305,9 @@ describe('swap smc', () => {
         let cfg = Object.create(defaultConfig);
         cfg.leftNft = [{addr:NFT1, sent: true}]
         cfg.leftCommission = toNano("1.0")
-        cfg.leftCommissionGot = toNano("0.8")
+        cfg.leftCoinsGot = toNano("0.8")
         cfg.rightNft = [{addr:NFT2, sent: true}]
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightCoinsGot = cfg.rightCommission
 
         let c = await SwapLocal.createFromConfig(cfg)
         c.contract.setBalance(toNano("10"))
@@ -275,13 +337,15 @@ describe('swap smc', () => {
         expect(data.state).toEqual(SwapState.Active)
     })
 
-    it('should complete after nft+commission', async () => {
+    it('should complete after nft+commission+amount', async () => {
         let cfg = Object.create(defaultConfig);
         cfg.leftNft = [{addr:NFT1, sent: false},{addr:NFT3, sent: true}]
         cfg.leftCommission = toNano("1.0")
+        cfg.leftAmount = toNano("0.7")
         cfg.rightNft = [{addr:NFT2, sent: true}]
         cfg.rightCommission = toNano("1.0")
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightAmount = toNano("0.1")
+        cfg.rightCoinsGot = toNano("1.1")
 
         let c = await SwapLocal.createFromConfig(cfg)
         c.contract.setBalance(toNano("0.05"))
@@ -289,7 +353,7 @@ describe('swap smc', () => {
         let res = await c.contract.sendInternalMessage(new InternalMessage({
             to: c.address,
             from: NFT1,
-            value: toNano("1.15"),
+            value: toNano("1.85"),
             bounce: false,
             body: new CommonMessageInfo({
                 body: new CellMessage(Queries.nftOwnerAssigned({
@@ -302,14 +366,14 @@ describe('swap smc', () => {
 
         checkActions(res.actionList,[{
             to: LEFT,
-            amount: toNano("0.05"),
+            amount: toNano("0.15"),
             body: Queries.transferComplete({}),
-            mode: 3,
+            mode: 1,
         },{
             to: RIGHT,
-            amount: toNano("0"),
+            amount: toNano("0.7"),
             body: Queries.transferComplete({}),
-            mode: 3,
+            mode: 1,
         },{
             to: NFT1,
             amount: toNano("0.05"),
@@ -345,10 +409,10 @@ describe('swap smc', () => {
         let cfg = Object.create(defaultConfig);
         cfg.leftNft = [{addr:NFT1, sent: true},{addr:NFT3, sent: true}]
         cfg.leftCommission = toNano("1.0")
-        cfg.leftCommissionGot = toNano("0.9")
+        cfg.leftCoinsGot = toNano("0.9")
         cfg.rightNft = [{addr:NFT2, sent: true}]
         cfg.rightCommission = toNano("1.0")
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightCoinsGot = cfg.rightCommission
 
         let c = await SwapLocal.createFromConfig(cfg)
 
@@ -370,12 +434,12 @@ describe('swap smc', () => {
             to: LEFT,
             amount: toNano("0"),
             body: Queries.transferComplete({}),
-            mode: 3,
+            mode: 1,
         },{
             to: RIGHT,
             amount: toNano("0"),
             body: Queries.transferComplete({}),
-            mode: 3,
+            mode: 1,
         },{
             to: NFT1,
             amount: toNano("0.05"),
@@ -411,10 +475,10 @@ describe('swap smc', () => {
         let cfg = Object.create(defaultConfig);
         cfg.leftNft = [{addr:NFT1, sent: true},{addr:NFT3, sent: true}]
         cfg.leftCommission = toNano("1.0")
-        cfg.leftCommissionGot = toNano("0.9")
+        cfg.leftCoinsGot = toNano("0.9")
         cfg.rightNft = [{addr:NFT2, sent: true}]
         cfg.rightCommission = toNano("1.0")
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightCoinsGot = cfg.rightCommission
 
         let c = await SwapLocal.createFromConfig(cfg)
 
@@ -437,10 +501,10 @@ describe('swap smc', () => {
         let cfg = Object.create(defaultConfig);
         cfg.leftNft = [{addr:NFT1, sent: true},{addr:NFT3, sent: true}]
         cfg.leftCommission = toNano("1.0")
-        cfg.leftCommissionGot = toNano("0.9")
+        cfg.leftCoinsGot = toNano("0.9")
         cfg.rightNft = [{addr:NFT2, sent: true}]
         cfg.rightCommission = toNano("1.0")
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightCoinsGot = cfg.rightCommission
 
         let c = await SwapLocal.createFromConfig(cfg)
 
@@ -464,10 +528,10 @@ describe('swap smc', () => {
         cfg.state = SwapState.Completed
         cfg.leftNft = [{addr:NFT1, sent: true},{addr:NFT3, sent: true}]
         cfg.leftCommission = toNano("1.0")
-        cfg.leftCommissionGot = toNano("0.9")
+        cfg.leftCoinsGot = toNano("0.9")
         cfg.rightNft = [{addr:NFT2, sent: true}]
         cfg.rightCommission = toNano("1.0")
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightCoinsGot = cfg.rightCommission
 
         let c = await SwapLocal.createFromConfig(cfg)
 
@@ -491,10 +555,10 @@ describe('swap smc', () => {
         cfg.state = SwapState.Completed
         cfg.leftNft = [{addr:NFT1, sent: true},{addr:NFT3, sent: true}]
         cfg.leftCommission = toNano("1.0")
-        cfg.leftCommissionGot = cfg.leftCommission
+        cfg.leftCoinsGot = cfg.leftCommission
         cfg.rightNft = [{addr:NFT2, sent: true}]
         cfg.rightCommission = toNano("1.0")
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightCoinsGot = cfg.rightCommission
 
         let c = await SwapLocal.createFromConfig(cfg)
 
@@ -516,10 +580,10 @@ describe('swap smc', () => {
         cfg.state = SwapState.Active
         cfg.leftNft = [{addr:NFT1, sent: false},{addr:NFT3, sent: true}]
         cfg.leftCommission = toNano("1.0")
-        cfg.leftCommissionGot = cfg.leftCommission
+        cfg.leftCoinsGot = cfg.leftCommission
         cfg.rightNft = [{addr:NFT2, sent: true}]
         cfg.rightCommission = toNano("1.0")
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightCoinsGot = cfg.rightCommission
 
         let c = await SwapLocal.createFromConfig(cfg)
 
@@ -541,10 +605,10 @@ describe('swap smc', () => {
         cfg.state = SwapState.Active
         cfg.leftNft = [{addr:NFT1, sent: false},{addr:NFT3, sent: true}]
         cfg.leftCommission = toNano("1.0")
-        cfg.leftCommissionGot = toNano("0.9")
+        cfg.leftCoinsGot = toNano("0.9")
         cfg.rightNft = [{addr:NFT2, sent: true}]
         cfg.rightCommission = toNano("1.0")
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightCoinsGot = cfg.rightCommission
 
         let c = await SwapLocal.createFromConfig(cfg)
 
@@ -601,10 +665,10 @@ describe('swap smc', () => {
         cfg.state = SwapState.Completed
         cfg.leftNft = [{addr:NFT1, sent: false},{addr:NFT3, sent: true}]
         cfg.leftCommission = toNano("1.0")
-        cfg.leftCommissionGot = toNano("0.9")
+        cfg.leftCoinsGot = toNano("0.9")
         cfg.rightNft = [{addr:NFT2, sent: true}]
         cfg.rightCommission = toNano("1.0")
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightCoinsGot = cfg.rightCommission
 
         let c = await SwapLocal.createFromConfig(cfg)
 
@@ -641,10 +705,10 @@ describe('swap smc', () => {
         cfg.state = SwapState.Completed
         cfg.leftNft = [{addr:NFT1, sent: false},{addr:NFT3, sent: true}]
         cfg.leftCommission = toNano("1.0")
-        cfg.leftCommissionGot = toNano("0.9")
+        cfg.leftCoinsGot = toNano("0.9")
         cfg.rightNft = [{addr:NFT2, sent: true}]
         cfg.rightCommission = toNano("1.0")
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightCoinsGot = cfg.rightCommission
 
         let c = await SwapLocal.createFromConfig(cfg)
 
@@ -669,10 +733,10 @@ describe('swap smc', () => {
         cfg.state = SwapState.Active
         cfg.leftNft = [{addr:NFT1, sent: false},{addr:NFT3, sent: true}]
         cfg.leftCommission = toNano("1.0")
-        cfg.leftCommissionGot = toNano("0.9")
+        cfg.leftCoinsGot = toNano("0.9")
         cfg.rightNft = [{addr:NFT2, sent: true}]
         cfg.rightCommission = toNano("1.0")
-        cfg.rightCommissionGot = cfg.rightCommission
+        cfg.rightCoinsGot = cfg.rightCommission
 
         let c = await SwapLocal.createFromConfig(cfg)
 

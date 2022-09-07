@@ -16,7 +16,7 @@ import {compileFunc} from "../../utils/compileFunc";
 
 type StateResponse = { state: number, left_ok: boolean, right_ok: boolean,
     leftAddr: Address, rightAddr: Address, leftNft: Map<string,boolean> | null, rightNft: Map<string,boolean> | null,
-    leftComm: BN, leftCommGot: BN, rightComm: BN, rightCommGot: BN}
+    leftComm: BN, leftAmount: BN, leftGot: BN, rightComm: BN, rightAmount: BN, rightGot: BN}
 
 export class SwapLocal {
     private constructor(
@@ -39,7 +39,7 @@ export class SwapLocal {
         }
 
         let [state, left_ok, right_ok, leftAddr, rightAddr, leftNft, rightNft,
-            leftComm, leftCommGot, rightComm, rightCommGot] = res.result as [BN, BN, BN, Slice, Slice, Cell, Cell, BN, BN, BN, BN]
+            leftComm, leftAmount, leftGot, rightComm, rightAmount, rightGot] = res.result as [BN, BN, BN, Slice, Slice, Cell, Cell, BN, BN, BN, BN, BN, BN]
 
 
         let leftMap = leftNft ? parseDict<boolean>(leftNft.beginParse(),256, function (s: Slice) {
@@ -58,9 +58,11 @@ export class SwapLocal {
             leftNft: leftMap,
             rightNft: rightMap,
             leftComm: leftComm,
-            leftCommGot: leftCommGot,
+            leftAmount: leftAmount,
+            leftGot: leftGot,
             rightComm: rightComm,
-            rightCommGot: rightCommGot,
+            rightAmount: rightAmount,
+            rightGot: rightGot,
         }
     }
 
