@@ -1,0 +1,174 @@
+#include "struct/op-codes.func";
+#include "struct/exit-codes.func";
+#include "struct/math.func";
+#include "struct/msg-utils.func";
+#include "struct/storage.func";
+#include "struct/handles.func";
+#include "struct/get-met.func";
+
+() return_last_bid(int my_balance, int is_cancel_auc) impure inline_ref {
+    if (last_bid <= 0) {
+        return ();
+    }
+
+    int return_bid_amount = last_bid - sub_gas_price_from_bid?; ;; 0.009909 TON magic gas price per bid processing
+    if (return_bid_amount > (my_balance - 10000000)) { ;; - 0.01 TON
+        return_bid_amount = my_balance - 10000000;
+    }
+
+    slice msg = msg::bid_return();
+
+    if (is_cancel_auc == true) {
+        msg = msg::auc_is_canceled();
+    }
+
+    if (return_bid_amount > 0) {
+        builder return_prev_bid = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(last_member)
+                .store_coins(return_bid_amount)
+                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                .store_uint(0, 32)
+                .store_slice(msg);
+
+        send_raw_message(return_prev_bid.end_cell(), 2);
+    }
+}
+
+(int) get_command_code(slice s) inline_ref {
+    if (slice_empty?(s) == true) {
+        return 0;
+    }
+
+    int op = s~load_uint(32);
+    if (equal_slices(msg::cancel_msg(), s)) {
+        return 1;
+    } elseif (equal_slices(msg::stop_msg(), s)) {
+        return 2;
+    } elseif (equal_slices(msg::finish_msg(), s)) {
+        return 2; ;; 2 its ok
+    } elseif (equal_slices(msg::deploy(), s)) {
+        return 3;
+    } else {
+        return 0;
+    }
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_cell, slice in_msg_body) impure {
+    slice cs = in_msg_cell.begin_parse();
+    throw_if(0, cs~load_uint(4) & 1);
+
+    slice sender_addr = cs~load_msg_addr();
+    init_data();
+
+    if ((end? == true) & equal_slices(sender_addr, mp_addr)) {
+        int op = in_msg_body~load_uint(32);
+        if ((op == 0) & equal_slices(in_msg_body, msg::repeat_end_auction())) {
+            ;; special case for repeat end_auction logic if nft not transfered from auc contract
+            handle::end_auction(sender_addr);
+            return ();
+        }
+        if ((op == 0) & equal_slices(in_msg_body, msg::emergency_message())) {
+            ;; way to fix unexpected troubles with auction contract
+            ;; for example if some one transfer nft to this contract
+            var msg = in_msg_body~load_ref().begin_parse();
+            var mode = msg~load_uint(8);
+            send_raw_message(msg~load_ref(), mode);
+            return ();
+        }
+        ;; accept coins for deploy
+        return ();
+    }
+
+    if (equal_slices(sender_addr, nft_addr)) {
+        handle::try_init_auction(sender_addr, in_msg_body);
+        return ();
+    }
+
+    int command = get_command_code(in_msg_body);
+
+
+    if (command == 1) { ;; cancel command, return nft, return last bid
+        throw_if(exit::auction_end(), now() >= end_time); ;; after timeout can't cancel
+        throw_if(exit::auction_end(), end? == true); ;; already canceled/ended
+        throw_if(exit::low_amount(), msg_value < 1000000000);
+        throw_unless(403, equal_slices(sender_addr, nft_owner) | equal_slices(sender_addr, mp_addr));
+        return_last_bid(my_balance, true);
+        handle::cancel(sender_addr);
+        return ();
+    }
+
+    if (command == 2) { ;; stop auction
+        throw_if(exit::auction_end(), end? == true); ;; end = true mean this action already executed
+        throw_if(exit::low_amount(), msg_value < 1000000000);
+        if (now() >= end_time) { ;; after end time stop auc can any of createor marpetplace or last_bid
+            throw_unless(403, equal_slices(sender_addr, nft_owner) | equal_slices(sender_addr, mp_addr) | equal_slices(sender_addr, last_member));
+        } else { ;; brfore time end stop only for creator
+            throw_unless(403, equal_slices(sender_addr, nft_owner));
+        }
+        handle::end_auction(sender_addr);
+        return ();
+    }
+
+    if (command == 3) {
+        ;; jsut accept coins
+        return ();
+    }
+
+
+    if ((end? == true) | (now() >= end_time)) {
+        throw(exit::auction_end());
+        return ();
+    }
+
+    ;; new bid
+
+    ;; max bid buy nft
+    if ((msg_value >= max_bid + 1000000000) & (max_bid > 0)) { ;; 1 TON
+        ;; end aution for this bid
+        return_last_bid(my_balance, false);
+        last_member = sender_addr;
+        last_bid = msg_value - 1000000000;
+        last_bid_at = now();
+        handle::end_auction(sender_addr);
+        return ();
+    }
+
+    ;; prevent bid at last second
+    if ((end_time - step_time) < now()) {
+        end_time += step_time;
+    }
+
+    ifnot(last_bid) {
+        throw_if(exit::low_bid(), msg_value < min_bid);
+        last_bid = msg_value;
+        last_member = sender_addr;
+        last_bid_at = now();
+        pack_data();
+        return ();
+    }
+
+    if (msg_value < (last_bid + min_step)) {
+        throw(exit::low_bid());
+        return ();
+    }
+
+    return_last_bid(my_balance, false);
+
+    last_member = sender_addr;
+    last_bid = msg_value;
+    last_bid_at = now();
+
+    pack_data();
+}
+
+{-
+    Message for deploy contract external
+-}
+() recv_external(slice in_msg) impure {
+    init_data();
+    throw_if(exit::already_activated(), activated? == true);
+    accept_message();
+    activated? = true;
+    pack_data();
+}

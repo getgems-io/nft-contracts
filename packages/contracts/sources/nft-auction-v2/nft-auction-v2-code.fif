@@ -1,0 +1,732 @@
+"TonUtil.fif" include
+"Asm.fif" include
+// automatically generated from `../stdlib.fc` `./nft-auction-v2.func` incl:`./struct/op-codes.func` incl:`./struct/exit-codes.func` incl:`./struct/math.func` incl:`./struct/msg-utils.func` incl:`./struct/storage.func` incl:`./struct/handles.func` incl:`./struct/get-met.func` 
+PROGRAM{
+  DECLPROC division
+  DECLPROC multiply
+  DECLPROC math::get_percent
+  DECLPROC init_data
+  DECLPROC pack_data
+  DECLPROC get_fees
+  DECLPROC handle::try_init_auction
+  DECLPROC handle::cancel
+  DECLPROC handle::end_auction
+  72748 DECLMETHOD get_sale_data
+  DECLPROC return_last_bid
+  DECLPROC get_command_code
+  DECLPROC recv_internal
+  DECLPROC recv_external
+  DECLGLOBVAR init?
+  DECLGLOBVAR end?
+  DECLGLOBVAR mp_addr
+  DECLGLOBVAR activated?
+  DECLGLOBVAR created_at?
+  DECLGLOBVAR is_canceled?
+  DECLGLOBVAR sub_gas_price_from_bid?
+  DECLGLOBVAR fees_cell
+  DECLGLOBVAR constant_cell
+  DECLGLOBVAR min_bid
+  DECLGLOBVAR max_bid
+  DECLGLOBVAR min_step
+  DECLGLOBVAR last_member
+  DECLGLOBVAR last_bid
+  DECLGLOBVAR last_bid_at
+  DECLGLOBVAR end_time
+  DECLGLOBVAR step_time
+  DECLGLOBVAR nft_owner
+  DECLGLOBVAR nft_addr
+  division PROC:<{
+    1000000000 PUSHINT
+    SWAP
+    MULDIV
+  }>
+  multiply PROC:<{
+    1000000000 PUSHINT
+    MULDIV
+  }>
+  math::get_percent PROC:<{
+    DUP
+    0 EQINT
+    IFJMP:<{
+      3 BLKDROP
+      0 PUSHINT
+    }>
+    -ROT
+    multiply CALLDICT
+    SWAP
+    division CALLDICT
+  }>
+  init_data PROCREF:<{
+    init? GETGLOB
+    ISNULL
+    IFNOTJMP:<{
+    }>
+    c4 PUSH
+    CTOS
+    1 LDI
+    SWAP
+    end? SETGLOB
+    1 LDI
+    SWAP
+    activated? SETGLOB
+    1 LDI
+    SWAP
+    is_canceled? SETGLOB
+    LDMSGADDR
+    SWAP
+    last_member SETGLOB
+    LDVARUINT16
+    SWAP
+    last_bid SETGLOB
+    32 LDU
+    SWAP
+    last_bid_at SETGLOB
+    32 LDU
+    SWAP
+    end_time SETGLOB
+    LDMSGADDR
+    SWAP
+    nft_owner SETGLOB
+    LDREF
+    SWAP
+    fees_cell SETGLOB
+    LDREF
+    DROP
+    constant_cell SETGLOB
+    constant_cell GETGLOB
+    CTOS
+    32 LDI
+    SWAP
+    sub_gas_price_from_bid? SETGLOB
+    LDMSGADDR
+    SWAP
+    mp_addr SETGLOB
+    LDVARUINT16
+    SWAP
+    min_bid SETGLOB
+    LDVARUINT16
+    SWAP
+    max_bid SETGLOB
+    LDVARUINT16
+    SWAP
+    min_step SETGLOB
+    32 LDU
+    SWAP
+    step_time SETGLOB
+    LDMSGADDR
+    SWAP
+    nft_addr SETGLOB
+    32 LDU
+    DROP
+    created_at? SETGLOB
+    TRUE
+    init? SETGLOB
+  }>
+  pack_data PROCREF:<{
+    constant_cell GETGLOB
+    fees_cell GETGLOB
+    end_time GETGLOB
+    last_bid_at GETGLOB
+    is_canceled? GETGLOB
+    activated? GETGLOB
+    end? GETGLOB
+    NEWC
+    1 STI
+    1 STI
+    1 STI
+    last_member GETGLOB
+    STSLICER
+    last_bid GETGLOB
+    STVARUINT16
+    32 STU
+    32 STU
+    nft_owner GETGLOB
+    STSLICER
+    STREF
+    STREF
+    ENDC
+    c4 POP
+  }>
+  get_fees PROCREF:<{
+    fees_cell GETGLOB
+    CTOS
+    LDMSGADDR
+    32 LDU
+    32 LDU
+    LDMSGADDR
+    32 LDU
+    32 LDU
+    DROP
+  }>
+  handle::try_init_auction PROCREF:<{
+    NIP
+    1001 PUSHINT
+    nft_owner GETGLOB
+    SBITS
+    2 GTINT
+    THROWANYIF
+    1002 PUSHINT
+    SWAP
+    32 LDU
+    0x05138d91 PUSHINT
+    s1 s2 XCHG
+    EQUAL
+    s1 s2 XCHG
+    THROWANYIFNOT
+    64 PUSHINT
+    SDSKIPFIRST
+    LDMSGADDR
+    DROP
+    nft_owner SETGLOB
+    FALSE
+    end? SETGLOB
+    TRUE
+    activated? SETGLOB
+    pack_data INLINECALLDICT
+  }>
+  handle::cancel PROCREF:<{
+    0 PUSHINT
+    DUP
+    LTIME
+    0x5fcc3d14 PUSHINT
+    NEWC
+    32 STU
+    64 STU
+    nft_owner GETGLOB
+    STSLICER
+    s0 s3 XCHG2
+    STSLICER
+    s1 s2 XCHG
+    1 STU
+    OVER
+    STVARUINT16
+    1 STU
+    ENDC
+    1 PUSHINT
+    24 PUSHINT
+    NEWC
+    6 STU
+    nft_addr GETGLOB
+    STSLICER
+    0 PUSHINT
+    STVARUINT16
+    107 STU
+    STREF
+    1000000 PUSHINT
+    0 PUSHINT
+    RAWRESERVE
+    ENDC
+    7 PUSHPOW2
+    SENDRAWMSG
+    TRUE
+    end? SETGLOB
+    TRUE
+    is_canceled? SETGLOB
+    pack_data INLINECALLDICT
+  }>
+  handle::end_auction PROCREF:<{
+    last_bid GETGLOB
+    0 EQINT
+    IF:<{
+      0 PUSHINT
+      DUP
+      LTIME
+      0x5fcc3d14 PUSHINT
+      NEWC
+      32 STU
+      64 STU
+      nft_owner GETGLOB
+      STSLICER
+      s0 s3 XCHG2
+      STSLICER
+      s1 s2 XCHG
+      1 STU
+      OVER
+      STVARUINT16
+      1 STU
+      ENDC
+      1 PUSHINT
+      24 PUSHINT
+      NEWC
+      6 STU
+      nft_addr GETGLOB
+      STSLICER
+      0 PUSHINT
+      STVARUINT16
+      107 STU
+      STREF
+      1000000 PUSHINT
+      0 PUSHINT
+      RAWRESERVE
+      ENDC
+      7 PUSHPOW2
+      SENDRAWMSG
+    }>ELSE<{
+      get_fees INLINECALLDICT
+      last_bid GETGLOB
+      s0 s5 s4 XCHG3
+      math::get_percent CALLDICT
+      DUP
+      0 GTINT
+      IF:<{
+        0 PUSHINT
+        DUP
+        16 PUSHINT
+        NEWC
+        6 STU
+        s0 s7 XCHG2
+        STSLICER
+        s2 PUSH
+        STVARUINT16
+        s1 s6 XCHG
+        107 STU
+        s1 s5 XCHG
+        32 STU
+        <b 124 word Marketplace fee| $, b> <s PUSHSLICE
+        STSLICER
+        ENDC
+        2 PUSHINT
+        SENDRAWMSG
+      }>ELSE<{
+        s4 POP
+      }>
+      last_bid GETGLOB
+      s0 s0 s3 XCHG3
+      math::get_percent CALLDICT
+      DUP
+      0 GTINT
+      IF:<{
+        0 PUSHINT
+        DUP
+        16 PUSHINT
+        NEWC
+        6 STU
+        s0 s4 XCHG2
+        STSLICER
+        s2 PUSH
+        STVARUINT16
+        s1 s3 XCHG
+        107 STU
+        s1 s2 XCHG
+        32 STU
+        <b 124 word Royalty| $, b> <s PUSHSLICE
+        STSLICER
+        ENDC
+        2 PUSHINT
+        SENDRAWMSG
+      }>ELSE<{
+        NIP
+      }>
+      1000000 PUSHINT
+      0 PUSHINT
+      RAWRESERVE
+      last_bid GETGLOB
+      ROT
+      SUB
+      SWAP
+      SUB
+      DUP
+      0 GTINT
+      IF:<{
+        0 PUSHINT
+        DUP
+        16 PUSHINT
+        NEWC
+        6 STU
+        nft_owner GETGLOB
+        STSLICER
+        s0 s3 XCHG2
+        STVARUINT16
+        s1 s2 XCHG
+        107 STU
+        32 STU
+        <b 124 word Profit| $, b> <s PUSHSLICE
+        STSLICER
+        ENDC
+        2 PUSHINT
+        SENDRAWMSG
+      }>ELSE<{
+        DROP
+      }>
+      0 PUSHINT
+      DUP
+      LTIME
+      0x5fcc3d14 PUSHINT
+      NEWC
+      32 STU
+      64 STU
+      last_member GETGLOB
+      STSLICER
+      s0 s3 XCHG2
+      STSLICER
+      s1 s2 XCHG
+      1 STU
+      10000000 PUSHINT
+      STVARUINT16
+      1 STU
+      ENDC
+      1 PUSHINT
+      24 PUSHINT
+      NEWC
+      6 STU
+      nft_addr GETGLOB
+      STSLICER
+      0 PUSHINT
+      STVARUINT16
+      107 STU
+      STREF
+      ENDC
+      7 PUSHPOW2
+      SENDRAWMSG
+    }>
+    TRUE
+    end? SETGLOB
+    pack_data INLINECALLDICT
+  }>
+  get_sale_data PROC:<{
+    init_data INLINECALLDICT
+    get_fees INLINECALLDICT
+    4281667 PUSHINT
+    end? GETGLOB
+    end_time GETGLOB
+    mp_addr GETGLOB
+    nft_addr GETGLOB
+    nft_owner GETGLOB
+    last_bid GETGLOB
+    last_member GETGLOB
+    min_step GETGLOB
+    max_bid GETGLOB
+    min_bid GETGLOB
+    created_at? GETGLOB
+    last_bid_at GETGLOB
+    is_canceled? GETGLOB
+    s13 19 s() XCHG
+    s12 18 s() XCHG
+    s11 17 s() XCHG
+    s10 16 s() XCHG
+    s9 s15 XCHG
+    s8 s14 XCHG
+    s7 s13 XCHG
+    s6 s12 XCHG
+    s5 s11 XCHG
+    s7 s10 XCHG
+    s6 s9 XCHG
+    s5 s8 XCHG
+  }>
+  return_last_bid PROCREF:<{
+    last_bid GETGLOB
+    1 LESSINT
+    IFJMP:<{
+      2DROP
+    }>
+    last_bid GETGLOB
+    sub_gas_price_from_bid? GETGLOB
+    SUB
+    s2 PUSH
+    10000000 PUSHINT
+    SUB
+    s1 s(-1) PUXC
+    GREATER
+    IF:<{
+      DROP
+      SWAP
+      10000000 PUSHINT
+      SUB
+      SWAP
+    }>ELSE<{
+      s2 POP
+    }>
+    <b 124 word Your bid has been outbid by another user.| $, b> <s PUSHSLICE
+    SWAP
+    -1 EQINT
+    IF:<{
+      DROP
+      <b 124 word Auction has been cancelled.| $, b> <s PUSHSLICE
+    }>
+    OVER
+    0 GTINT
+    IF:<{
+      0 PUSHINT
+      DUP
+      24 PUSHINT
+      NEWC
+      6 STU
+      last_member GETGLOB
+      STSLICER
+      s0 s4 XCHG2
+      STVARUINT16
+      s1 s3 XCHG
+      107 STU
+      s1 s2 XCHG
+      32 STU
+      SWAP
+      STSLICER
+      ENDC
+      2 PUSHINT
+      SENDRAWMSG
+    }>ELSE<{
+      2DROP
+    }>
+  }>
+  get_command_code PROCREF:<{
+    DUP
+    SEMPTY
+    -1 EQINT
+    IFJMP:<{
+      DROP
+      0 PUSHINT
+    }>
+    32 LDU
+    NIP
+    <b 124 word cancel| $, b> <s PUSHSLICE
+    OVER
+    SDEQ
+    IFJMP:<{
+      DROP
+      1 PUSHINT
+    }>
+    <b 124 word stop| $, b> <s PUSHSLICE
+    OVER
+    SDEQ
+    IFJMP:<{
+      DROP
+      2 PUSHINT
+    }>
+    <b 124 word finish| $, b> <s PUSHSLICE
+    OVER
+    SDEQ
+    IFJMP:<{
+      DROP
+      2 PUSHINT
+    }>
+    <b 124 word deploy| $, b> <s PUSHSLICE
+    SWAP
+    SDEQ
+    IFJMP:<{
+      3 PUSHINT
+    }>
+    0 PUSHINT
+  }>
+  recv_internal PROC:<{
+    SWAP
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    0 THROWIF
+    LDMSGADDR
+    DROP
+    init_data INLINECALLDICT
+    end? GETGLOB
+    -1 EQINT
+    mp_addr GETGLOB
+    s2 s(-1) PUXC
+    SDEQ
+    AND
+    IFJMP:<{
+      s3 POP
+      NIP
+      32 LDU
+      OVER
+      0 EQINT
+      <b 124 word repeat_end_auction| $, b> <s PUSHSLICE
+      s2 s(-1) PUXC
+      SDEQ
+      AND
+      IFJMP:<{
+        2DROP
+        handle::end_auction INLINECALLDICT
+      }>
+      s2 POP
+      0 EQINT
+      <b 124 word emergency_message| $, b> <s PUSHSLICE
+      s2 s(-1) PUXC
+      SDEQ
+      AND
+      IFJMP:<{
+        LDREF
+        DROP
+        CTOS
+        8 LDU
+        LDREF
+        DROP
+        SWAP
+        SENDRAWMSG
+      }>
+      DROP
+    }>
+    nft_addr GETGLOB
+    s1 s(-1) PUXC
+    SDEQ
+    IFJMP:<{
+      s3 POP
+      NIP
+      handle::try_init_auction INLINECALLDICT
+    }>
+    SWAP
+    get_command_code INLINECALLDICT
+    DUP
+    1 EQINT
+    IFJMP:<{
+      DROP
+      1005 PUSHINT
+      NOW
+      end_time GETGLOB
+      GEQ
+      THROWANYIF
+      1005 PUSHINT
+      end? GETGLOB
+      -1 EQINT
+      THROWANYIF
+      1008 PUSHINT
+      s0 s2 XCHG
+      1000000000 PUSHINT
+      LESS
+      s1 s2 XCHG
+      THROWANYIF
+      nft_owner GETGLOB
+      s1 s(-1) PUXC
+      SDEQ
+      mp_addr GETGLOB
+      s2 s(-1) PUXC
+      SDEQ
+      OR
+      403 THROWIFNOT
+      SWAP
+      TRUE
+      return_last_bid INLINECALLDICT
+      handle::cancel INLINECALLDICT
+    }>
+    DUP
+    2 EQINT
+    IFJMP:<{
+      DROP
+      s2 POP
+      1005 PUSHINT
+      end? GETGLOB
+      -1 EQINT
+      THROWANYIF
+      1008 PUSHINT
+      SWAP
+      1000000000 PUSHINT
+      LESS
+      THROWANYIF
+      NOW
+      end_time GETGLOB
+      GEQ
+      IF:<{
+        nft_owner GETGLOB
+        s1 s(-1) PUXC
+        SDEQ
+        mp_addr GETGLOB
+        s2 s(-1) PUXC
+        SDEQ
+        OR
+        last_member GETGLOB
+        s2 s(-1) PUXC
+        SDEQ
+        OR
+        403 THROWIFNOT
+      }>ELSE<{
+        nft_owner GETGLOB
+        s1 s(-1) PUXC
+        SDEQ
+        403 THROWIFNOT
+      }>
+      handle::end_auction INLINECALLDICT
+    }>
+    3 EQINT
+    IFJMP:<{
+      3 BLKDROP
+    }>
+    end? GETGLOB
+    -1 EQINT
+    NOW
+    end_time GETGLOB
+    GEQ
+    OR
+    IFJMP:<{
+      3 BLKDROP
+      1005 PUSHINT
+      THROWANY
+    }>
+    max_bid GETGLOB
+    1000000000 PUSHINT
+    ADD
+    s2 s(-1) PUXC
+    GEQ
+    max_bid GETGLOB
+    0 GTINT
+    AND
+    IFJMP:<{
+      s0 s2 XCHG
+      FALSE
+      return_last_bid INLINECALLDICT
+      OVER
+      last_member SETGLOB
+      1000000000 PUSHINT
+      SUB
+      last_bid SETGLOB
+      NOW
+      last_bid_at SETGLOB
+      handle::end_auction INLINECALLDICT
+    }>
+    end_time GETGLOB
+    step_time GETGLOB
+    SUB
+    NOW
+    LESS
+    IF:<{
+      end_time GETGLOB
+      step_time GETGLOB
+      ADD
+      end_time SETGLOB
+    }>
+    last_bid GETGLOB
+    IFNOTJMP:<{
+      s2 POP
+      1000 PUSHINT
+      min_bid GETGLOB
+      s2 s(-1) PUXC
+      LESS
+      THROWANYIF
+      last_bid SETGLOB
+      last_member SETGLOB
+      NOW
+      last_bid_at SETGLOB
+      pack_data INLINECALLDICT
+    }>
+    last_bid GETGLOB
+    min_step GETGLOB
+    ADD
+    s2 s(-1) PUXC
+    LESS
+    IFJMP:<{
+      3 BLKDROP
+      1000 PUSHINT
+      THROWANY
+    }>
+    s0 s2 XCHG
+    FALSE
+    return_last_bid INLINECALLDICT
+    SWAP
+    last_member SETGLOB
+    last_bid SETGLOB
+    NOW
+    last_bid_at SETGLOB
+    pack_data INLINECALLDICT
+  }>
+  recv_external PROC:<{
+    DROP
+    init_data INLINECALLDICT
+    1006 PUSHINT
+    activated? GETGLOB
+    -1 EQINT
+    THROWANYIF
+    ACCEPT
+    TRUE
+    activated? SETGLOB
+    pack_data INLINECALLDICT
+  }>
+}END>c

@@ -81,12 +81,12 @@ export const OperationCodes = {
     getStaticDataResponse: 0x8b771735,
     EditContent: 0x1a0b9d51,
     TransferEditorship: 0x1c04412a,
-    PullOwnership: 0x03fdd6c9,
-    ProveOwnership: 0x38061b82,
-    VerifyOwnership: 0x01b628aa,
-    VerifyOwnershipBounced: 0x450cc71b,
-    Destroy: 0x2124b0b9,
-    Revoke: 0x6a6f099e
+    PullOwnership: 0x08496845,
+    ProveOwnership: 0x04ded148,
+    VerifyOwnership: 0x1eac6b5d,
+    VerifyOwnershipBounced: 0xb645e081,
+    Destroy: 0x1f04537a,
+    Revoke: 0x6f89f5e3
 }
 
 export const Queries = {

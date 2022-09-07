@@ -1,0 +1,14 @@
+;;
+;;  custom TVM exit codes
+;;
+
+int exit::low_bid()           asm "1000 PUSHINT";
+int exit::auction_init()      asm "1001 PUSHINT";
+int exit::no_transfer()       asm "1002 PUSHINT";
+int exit::not_message()       asm "1003 PUSHINT";
+int exit::not_cancel()        asm "1004 PUSHINT";
+int exit::auction_end()       asm "1005 PUSHINT";
+int exit::already_activated() asm "1006 PUSHINT";
+int exit::cant_cancel_end()   asm "1007 PUSHINT";
+int exit::low_amount()        asm "1008 PUSHINT";
+

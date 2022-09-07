@@ -1,0 +1,94 @@
+;;
+;;  persistant and runtime storage вescription
+;;
+
+global int      init?; ;; init_data safe check
+global int      end?; ;; end auction or not
+global slice    mp_addr; ;; the address of the marketplace from which the contract is deployed
+global int      activated?; ;; contract is activated by external message or by nft transfer
+global int      created_at?; ;; timestamp of created acution
+global int      is_canceled?; ;; auction was cancelled by owner
+global int      sub_gas_price_from_bid?; ;; amound of gas used for processing bif
+
+global cell fees_cell;
+global cell constant_cell;
+
+;; bids info cell (ref)
+global int      min_bid; ;; minimal bid
+global int      max_bid; ;; maximum bid
+global int      min_step; ;; minimum step (can be 0)
+global slice    last_member; ;; last member address
+global int      last_bid; ;; last bid amount
+global int      last_bid_at; ;; timestamp of last bid
+global int      end_time; ;; unix end time
+global int      step_time; ;; by how much the time increases with the new bid (e.g. 30)
+
+;; nft info cell (ref)
+global slice    nft_owner; ;; nft owner addres (should be sent nft if auction canceled or money from auction)
+global slice    nft_addr; ;; nft address
+
+
+() init_data() impure inline_ref {- save for get methods -} {
+    ifnot(null?(init?)) { return ();}
+
+    slice ds = get_data().begin_parse();
+    end? = ds~load_int(1);
+    activated? = ds~load_int(1);
+    is_canceled? = ds~load_int(1);
+    last_member = ds~load_msg_addr();
+    last_bid = ds~load_coins();
+    last_bid_at = ds~load_uint(32);
+    end_time = ds~load_uint(32);
+    nft_owner = ds~load_msg_addr();
+
+    fees_cell = ds~load_ref();
+    constant_cell = ds~load_ref();
+    slice constants = constant_cell.begin_parse();
+    sub_gas_price_from_bid? = constants~load_int(32);
+    mp_addr = constants~load_msg_addr();
+    min_bid = constants~load_coins();
+    max_bid = constants~load_coins();
+    min_step = constants~load_coins();
+    step_time = constants~load_uint(32);
+    nft_addr = constants~load_msg_addr();
+    created_at? = constants~load_uint(32);
+
+
+    init? = true;
+}
+
+() pack_data() impure inline_ref {
+    set_data(
+            begin_cell()
+                    .store_int(end?, 1) ;; + stc    1
+                    .store_int(activated?, 1) ;; activated? 1
+                    .store_int(is_canceled?, 1) ;; 1
+                    .store_slice(last_member) ;; + max    267 ($10 with Anycast = 0)
+                    .store_coins(last_bid) ;; + max    124
+                    .store_uint(last_bid_at, 32) ;; + stc    32
+                    .store_uint(end_time, 32) ;; + stc    32
+                    .store_slice(nft_owner) ;; 267
+                    .store_ref(fees_cell) ;; + ref
+                    .store_ref(constant_cell) ;; + ref
+                    .end_cell()
+            ;; total 267 + 124 + 32 + 32 + 267 + 1 + 1 + 1 = 725
+    );
+}
+
+(slice, int, int, slice, int, int) get_fees() inline_ref {
+    slice fees = fees_cell.begin_parse();
+    slice mp_fee_addr = fees~load_msg_addr();
+    int mp_fee_factor = fees~load_uint(32);
+    int mp_fee_base = fees~load_uint(32);
+    slice royalty_fee_addr = fees~load_msg_addr();
+    int royalty_fee_factor = fees~load_uint(32);
+    int royalty_fee_base = fees~load_uint(32);
+    return (
+            mp_fee_addr,
+            mp_fee_factor,
+            mp_fee_base,
+            royalty_fee_addr,
+            royalty_fee_factor,
+            royalty_fee_base
+    );
+}

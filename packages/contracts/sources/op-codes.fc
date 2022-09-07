@@ -12,9 +12,9 @@ int op::transfer_editorship() asm "0x1c04412a PUSHINT";
 int op::editorship_assigned() asm "0x511a4463 PUSHINT";
 
 ;; SBT
-int op::pull_ownership() asm "0x03fdd6c9 PUSHINT";
-int op::verify_ownership() asm "0x01b628aa PUSHINT";
-int op::prove_ownership() asm "0x38061b82 PUSHINT";
-int op::verify_ownership_bounced() asm "0x450cc71b PUSHINT";
-int op::destroy() asm "0x2124b0b9 PUSHINT";
-int op::revoke() asm "0x6a6f099e PUSHINT";
+int op::pull_ownership() asm "0x08496845 PUSHINT";
+int op::verify_ownership() asm "0x1eac6b5d PUSHINT";
+int op::prove_ownership() asm "0x04ded148 PUSHINT";
+int op::verify_ownership_bounced() asm "0xb645e081 PUSHINT";
+int op::destroy() asm "0x1f04537a PUSHINT";
+int op::revoke() asm "0x6f89f5e3 PUSHINT";
