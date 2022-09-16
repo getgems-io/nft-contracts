@@ -10,6 +10,7 @@ import {
     createPrivateKey
 } from 'node:crypto';
 import {Address} from "ton/dist";
+import {ReserveCurrencyAction} from "ton-contract-executor/dist/utils/parseActionList";
 
 const privateKey = createPrivateKey("-----BEGIN PRIVATE KEY-----\n" +
     "MC4CAQAwBQYDK2VwBCIEIA1scXXBIFR8kubx8NyDPx5uTOzxtl2RZjgdHZhBG3v3\n" +
@@ -158,6 +159,13 @@ describe('sbt item smc', () => {
         }))
 
         expect(res.exit_code).toEqual(0)
+
+        let [reserve, responseMessage] = res.actionList as [ReserveCurrencyAction, SendMsgAction]
+        let response = responseMessage.message.body.beginParse()
+
+        let op = response.readUintNumber(32)
+        expect(op).toEqual(OperationCodes.excesses)
+        expect(reserve.currency.coins.toNumber()).toEqual(toNano("0.05").toNumber())
 
         let data = await sbt.getNftData()
         if (!data.isInitialized) {
