@@ -14,7 +14,7 @@ import {compileFunc} from "../../utils/compileFunc";
 
 type NftDataResponse =
     | { isInitialized: false, index: number, collectionAddress: Address | null }
-    | { isInitialized: true, index: number, collectionAddress: Address | null, ownerAddress: Address, content: string, contentRaw: Cell }
+    | { isInitialized: true, index: number, collectionAddress: Address | null, ownerAddress: Address | null, content: string, contentRaw: Cell }
 
 export class SbtItemLocal {
     private constructor(
@@ -61,26 +61,15 @@ export class SbtItemLocal {
         }
     }
 
-    async getNonce(): Promise<BN> {
-        let res = await this.contract.invokeGetMethod('get_nonce', [])
+    async getAuthority(): Promise<Address | null> {
+        let res = await this.contract.invokeGetMethod('get_authority_address', [])
         if (res.type !== 'success') {
-            throw new Error(`Cant invoke get_nonce`)
+            throw new Error(`Cant invoke get_authority_address`)
         }
 
-        let [n] = res.result as [BN]
+        let [key] = res.result as [Slice]
 
-        return n
-    }
-
-    async getPubKey(): Promise<BN> {
-        let res = await this.contract.invokeGetMethod('get_public_key', [])
-        if (res.type !== 'success') {
-            throw new Error(`Cant invoke get_public_key`)
-        }
-
-        let [key] = res.result as [BN]
-
-        return key
+        return key.readAddress()
     }
 
     async getEditor(): Promise<Address | null> {

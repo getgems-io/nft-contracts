@@ -3,10 +3,6 @@ import BN from "bn.js";
 import {encodeOffChainContent} from "../../nft-content/nftContent";
 import {Queries as CollectionQueries} from '../nft-collection/NftCollection.data'
 
-import {
-    KeyObject,
-    sign
-} from 'node:crypto';
 import {beginCell} from "ton/dist";
 
 export type SbtItemData = {
@@ -15,8 +11,6 @@ export type SbtItemData = {
     ownerAddress: Address
     authorityAddress: Address
     content: string
-    ownerPubKey: BN
-    nonce: number
 }
 
 export function buildSbtItemDataCell(data: SbtItemData) {
@@ -30,11 +24,6 @@ export function buildSbtItemDataCell(data: SbtItemData) {
     dataCell.bits.writeAddress(data.ownerAddress)
     dataCell.refs.push(contentCell)
     dataCell.bits.writeAddress(data.authorityAddress)
-
-    let ownerCell = new Cell()
-    ownerCell.bits.writeUint(data.ownerPubKey, 256)
-    ownerCell.bits.writeUint(data.nonce, 64)
-    dataCell.refs.push(ownerCell)
 
     return dataCell
 }
@@ -53,8 +42,6 @@ export type SbtSingleData = {
     editorAddress: Address
     content: string
     authorityAddress: Address
-    ownerPubKey: BN
-    nonce: number
 }
 
 export function buildSingleSbtDataCell(data: SbtSingleData) {
@@ -67,11 +54,6 @@ export function buildSingleSbtDataCell(data: SbtSingleData) {
     dataCell.refs.push(contentCell)
     dataCell.bits.writeAddress(data.authorityAddress)
 
-    let ownerCell = new Cell()
-    ownerCell.bits.writeUint(data.ownerPubKey, 256)
-    ownerCell.bits.writeUint(data.nonce, 64)
-    dataCell.refs.push(ownerCell)
-
     return dataCell
 }
 
@@ -82,16 +64,17 @@ export const OperationCodes = {
     getStaticDataResponse: 0x8b771735,
     EditContent: 0x1a0b9d51,
     TransferEditorship: 0x1c04412a,
-    PullOwnership: 0x08496845,
     ProveOwnership: 0x04ded148,
-    VerifyOwnership: 0x1eac6b5d,
-    VerifyOwnershipBounced: 0xb645e081,
+    OwnershipProof: 0x6ecd55cc,
+    OwnershipProofBounced: 0xc18e86d2,
+    RequestOwnerInfo: 0xd0c3bfea,
+    OwnerInfo: 0xc2fa9387,
+    OwnerInfoBounced: 0x7ca7b0fe,
     Destroy: 0x1f04537a,
-    Revoke: 0x6f89f5e3
 }
 
 export const Queries = {
-    transfer: (params: { queryId?: number, newOwner: Address, responseTo?: Address, forwardAmount?: BN }) => {
+    transfer: (params: { queryId?: number, newOwner: Address | null, responseTo?: Address, forwardAmount?: BN }) => {
         let msgBody = new Cell()
         msgBody.bits.writeUint(OperationCodes.transfer, 32)
         msgBody.bits.writeUint(params.queryId || 0, 64)
@@ -109,32 +92,6 @@ export const Queries = {
         msgBody.bits.writeUint(params.queryId || 0, 64)
         return msgBody
     },
-    revoke: (params: { queryId?: number}) => {
-        let msgBody = new Cell()
-        msgBody.bits.writeUint(OperationCodes.Revoke, 32)
-        msgBody.bits.writeUint(params.queryId || 0, 64)
-        return msgBody
-    },
-    pullOwnership: (params: { queryId?: number, nonce: number, key: KeyObject, newOwner?: Address, responseTo?: Address }) => {
-        let msgBody = new Cell()
-        msgBody.bits.writeUint(OperationCodes.PullOwnership, 32)
-        msgBody.bits.writeUint(params.queryId || 0, 64)
-
-        let msgPayload = new Cell()
-        msgPayload.bits.writeUint(params.nonce, 64)
-        msgPayload.bits.writeAddress(params.newOwner || null)
-        msgPayload.bits.writeAddress(params.responseTo || null)
-        msgPayload.bits.writeBit(false) // no custom payload
-
-        let signCell = new Cell()
-        let signature = sign(null, msgPayload.hash(), params.key);
-        signCell.bits.writeBuffer(signature)
-
-        msgBody.refs.push(signCell)
-        msgBody.bits.writeBitString(msgPayload.bits)
-
-        return msgBody
-    },
     proveOwnership: (params: { queryId?: number, to: Address, data: Cell, withContent:boolean }) => {
         let msgBody = new Cell()
         msgBody.bits.writeUint(OperationCodes.ProveOwnership, 32)
@@ -145,27 +102,41 @@ export const Queries = {
 
         return msgBody
     },
-    verifyOwnership: (params: { queryId?: number, id: number, to: Address, data: Cell }, bounced?: boolean) => {
+    requestOwnerInfo: (params: { queryId?: number, to: Address, data: Cell, withContent:boolean }) => {
+        let msgBody = new Cell()
+        msgBody.bits.writeUint(OperationCodes.RequestOwnerInfo, 32)
+        msgBody.bits.writeUint(params.queryId || 0, 64)
+        msgBody.bits.writeAddress(params.to)
+        msgBody.refs.push(params.data)
+        msgBody.bits.writeBit(params.withContent)
+
+        return msgBody
+    },
+    ownershipProof: (params: { queryId?: number, id: number, owner: Address, data: Cell }, bounced?: boolean) => {
         let msgBody = new Cell()
         if (bounced === true) {
             msgBody.bits.writeUint(0xffffffff, 32)
         }
-        msgBody.bits.writeUint(OperationCodes.VerifyOwnership, 32)
+        msgBody.bits.writeUint(OperationCodes.OwnershipProof, 32)
         msgBody.bits.writeUint(params.queryId || 0, 64)
         msgBody.bits.writeUint(params.id, 256)
-        msgBody.bits.writeAddress(params.to)
+        msgBody.bits.writeAddress(params.owner)
         msgBody.refs.push(params.data)
         msgBody.bits.writeBit(true)
         msgBody.refs.push(beginCell().endCell())
 
         return msgBody
     },
-    verifyOwnershipBounced: (params: { queryId?: number, id: number, to: Address, data: Cell }) => {
+    ownerInfo: (params: { queryId?: number, id: number, initiator: Address, owner: Address, data: Cell }, bounced?: boolean) => {
         let msgBody = new Cell()
-        msgBody.bits.writeUint(OperationCodes.VerifyOwnershipBounced, 32)
+        if (bounced === true) {
+            msgBody.bits.writeUint(0xffffffff, 32)
+        }
+        msgBody.bits.writeUint(OperationCodes.OwnerInfo, 32)
         msgBody.bits.writeUint(params.queryId || 0, 64)
         msgBody.bits.writeUint(params.id, 256)
-        msgBody.bits.writeAddress(params.to)
+        msgBody.bits.writeAddress(params.initiator)
+        msgBody.bits.writeAddress(params.owner)
         msgBody.refs.push(params.data)
         msgBody.bits.writeBit(true)
         msgBody.refs.push(beginCell().endCell())
