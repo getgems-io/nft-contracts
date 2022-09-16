@@ -1,0 +1,304 @@
+int state::active() asm "1 PUSHINT";
+int state::canceled() asm "2 PUSHINT";
+int state::completed() asm "3 PUSHINT";
+
+int local_op::add_coins() asm "1 PUSHINT";
+int local_op::cancel() asm "2 PUSHINT";
+int local_op::maintain() asm "3 PUSHINT";
+int local_op::topup() asm "4 PUSHINT";
+
+int trade::completed() asm "0xef03d009 PUSHINT";
+int trade::canceled() asm "0xb5188860 PUSHINT";
+int trade::commission() asm "0x82bd8f2a PUSHINT";
+
+int nft_send_amount() asm "50000000 PUSHINT"; ;; 0.05 TON
+int min_tons_per_nft() asm "100000000 PUSHINT"; ;; 0.1 TON
+int min_tons_for_storage_after_swap() asm "1000000 PUSHINT"; ;; 0.001 TON
+
+global int state;
+global slice supervisor;
+global slice commission_gainer;
+
+global slice left_trader;
+global cell left_nft;
+global int left_commission;
+global int left_surcharge;
+global int left_coins_got;
+
+global slice right_trader;
+global cell right_nft;
+global int right_commission;
+global int right_surcharge;
+global int right_coins_got;
+
+() save_data() impure {
+    set_data(begin_cell().store_uint(state, 2)
+            .store_slice(left_trader).store_slice(right_trader)
+            .store_coins(left_commission).store_coins(left_surcharge).store_coins(left_coins_got)
+            .store_dict(left_nft)
+            .store_coins(right_commission).store_coins(right_surcharge).store_coins(right_coins_got)
+            .store_dict(right_nft)
+            .store_ref(begin_cell()
+                    .store_slice(commission_gainer)
+                    .store_slice(supervisor)
+                    .end_cell())
+            .end_cell());
+}
+
+() load_data() impure {
+    slice data = get_data().begin_parse();
+    state = data~load_uint(2);
+    left_trader = data~load_msg_addr();
+    right_trader = data~load_msg_addr();
+
+    left_commission = data~load_coins();
+    left_surcharge = data~load_coins();
+    left_coins_got = data~load_coins();
+    left_nft = data~load_dict();
+
+    right_commission = data~load_coins();
+    right_surcharge = data~load_coins();
+    right_coins_got = data~load_coins();
+    right_nft = data~load_dict();
+
+    slice controls = data~load_ref().begin_parse();
+    commission_gainer = controls~load_msg_addr();
+    supervisor = controls~load_msg_addr();
+}
+
+(cell, int) set_if_required_nft(cell dict, int nft) {
+    (slice val, int found) = dict.udict_get?(256, nft);
+    if(found == 0) {
+        return (dict, 0);
+    }
+
+    dict~udict_set(256, nft, begin_cell().store_uint(1,1).end_cell().begin_parse());
+    return (dict, -1);
+}
+
+int check_nft(cell dict) {
+    int res = -1;
+    int key = -1;
+    do {
+        (key, slice data, int exists) = dict.udict_get_next?(256, key);
+        if (exists) {
+            if (data.preload_uint(1) == 0) {
+                ;; FunC not supports return here
+                res = 0;
+            }
+        }
+    } until (~ exists);
+
+    return res;
+}
+
+int check_conditions() inline {
+    return left_nft.check_nft() & (left_coins_got >= (left_commission + left_surcharge)) &
+            right_nft.check_nft() & (right_coins_got >= (right_commission + right_surcharge));
+}
+
+() send_nft(int mode, int amount, int nft, slice to, int query_id) impure inline {
+    var msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_uint(2,2)
+            .store_uint(0,9)
+            .store_uint(nft,256)
+            .store_coins(amount)
+            .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_ref(begin_cell()
+                .store_uint(op::transfer(), 32)
+                .store_uint(query_id, 64)
+                .store_slice(to)  ;; new_owner_address
+                .store_slice(to)  ;; response_address
+                .store_int(0, 1)  ;; empty custom_payload
+                .store_coins(0)   ;; forward amount to new_owner_address
+                .store_int(0, 1) ;; empty forward_payload
+                .end_cell()
+            );
+
+    send_raw_message(msg.end_cell(), mode);
+}
+
+() send_dict_nft(cell dict, slice to, int query_id) impure {
+    int key = -1;
+    do {
+        (key, slice data, int exists) = dict.udict_get_next?(256, key);
+        if (exists) {
+            if (data.preload_uint(1) == 1) {
+                send_nft(1, nft_send_amount(), key, to, query_id);
+            }
+        }
+    } until (~ exists);
+}
+
+() send_coins(int mode, slice to, int amount, int op, int query_id) impure inline {
+    var msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_slice(to)
+            .store_coins(amount)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_uint(op, 32)
+            .store_uint(query_id, 64);
+
+    send_raw_message(msg.end_cell(), mode);
+}
+
+() complete(int query_id) impure inline {
+    state = state::completed();
+
+    left_nft.send_dict_nft(right_trader, query_id);
+    right_nft.send_dict_nft(left_trader, query_id);
+
+    raw_reserve(min_tons_for_storage_after_swap(), 0);
+    send_coins(1, left_trader, right_surcharge + (left_coins_got - (left_commission + left_surcharge)), trade::completed(), query_id);
+    send_coins(1, right_trader, left_surcharge + (right_coins_got - (right_commission + right_surcharge)), trade::completed(), query_id);
+
+    send_coins(128 + 2, commission_gainer, 0, trade::commission(), query_id);
+}
+
+() cancel(int query_id) impure inline {
+    state = state::canceled();
+
+    left_nft.send_dict_nft(left_trader, query_id);
+    right_nft.send_dict_nft(right_trader, query_id);
+
+    raw_reserve(min_tons_for_storage_after_swap(), 0);
+    send_coins(1 + 2, left_trader, left_coins_got, trade::canceled(), query_id);
+    send_coins(1 + 2, right_trader, right_coins_got, trade::canceled(), query_id);
+
+    send_coins(128 + 2, commission_gainer, 0, trade::commission(), query_id);
+}
+
+;; testable
+() recv_internal(int balance, int msg_value, cell in_msg_cell, slice in_msg) impure {
+    var cs = in_msg_cell.begin_parse();
+    int flags = cs~load_uint(4);
+
+    if (flags & 1) {
+        ;; ignore bounced
+        return ();
+    }
+
+    load_data();
+
+    slice sender_address_data = cs~load_msg_addr();
+
+    int is_left = equal_slices(sender_address_data, left_trader);
+    int is_right = equal_slices(sender_address_data, right_trader);
+    int is_super = equal_slices(sender_address_data, supervisor);
+
+    ;; allow only std addr for now
+    throw_unless(403, sender_address_data~load_uint(2) == 2);
+
+    sender_address_data~skip_bits(9);
+    int sender_id = sender_address_data.preload_uint(256);
+
+    int op = in_msg~load_uint(32);
+    int query_id = in_msg~load_uint(64);
+
+    if (op == op::ownership_assigned()) {
+        int additional_amount = msg_value - min_tons_per_nft();
+        throw_if(405, additional_amount < 0);
+
+        ;; state not active, return it back
+        if (state != state::active()) {
+            slice nft_old_owner_addr = in_msg~load_msg_addr();
+            send_nft(64, 0, sender_id, nft_old_owner_addr, query_id);
+            return ();
+        }
+
+        (cell left_nft_tmp, int ok_left) = left_nft.set_if_required_nft(sender_id);
+        (cell right_nft_tmp, int ok_right) = right_nft.set_if_required_nft(sender_id);
+        left_nft = left_nft_tmp;
+        right_nft = right_nft_tmp;
+
+        ;; unexpected nft, return it back
+        if ((ok_left | ok_right) == 0) {
+            slice nft_old_owner_addr = in_msg~load_msg_addr();
+            send_nft(64, 0, sender_id, nft_old_owner_addr, query_id);
+            return ();
+        }
+
+        if (ok_left) {
+            left_coins_got += additional_amount;
+        } else {
+            right_coins_got += additional_amount;
+        }
+
+        if (check_conditions() != 0) {
+            complete(query_id);
+        }
+
+        save_data();
+        return ();
+    }
+
+    if (op == local_op::add_coins()) {
+        throw_unless(403, state == state::active());
+
+        throw_if(401, (is_left | is_right) == 0);
+
+        int coins_sent = in_msg~load_coins();
+        throw_if(405, coins_sent > msg_value);
+
+        if (is_left) {
+            left_coins_got += coins_sent;
+        } else {
+            right_coins_got += coins_sent;
+        }
+
+        if (check_conditions() != 0) {
+            complete(query_id);
+        } else {
+            ;; reserve all except amount for paying processing fees
+            raw_reserve(balance - (msg_value - coins_sent), 0);
+        }
+
+        save_data();
+        return ();
+    }
+
+    if (op == local_op::cancel()) {
+        throw_if(401, (is_left | is_right | is_super) == 0);
+        throw_unless(403, state == state::active());
+
+        cancel(query_id);
+
+        save_data();
+        return ();
+    }
+
+    if (op == local_op::maintain()) {
+        throw_if(401, is_super == 0);
+
+        var mode = in_msg~load_uint(8);
+        return send_raw_message(in_msg~load_ref(), mode);
+    }
+
+    if (op == local_op::topup()) {
+        if ((state == state::active()) & (check_conditions() != 0)) {
+            complete(query_id);
+            save_data();
+        }
+
+        return ();
+    }
+
+    throw(0xffff);
+}
+
+(_) get_trade_state() method_id {
+    load_data();
+
+    int left_ok = left_nft.check_nft() & (left_coins_got >= (left_commission + left_surcharge));
+    int right_ok = right_nft.check_nft() & (right_coins_got >= (right_commission + right_surcharge));
+
+    return (state, left_ok, right_ok, left_trader, right_trader, left_nft,
+            right_nft, left_commission, left_surcharge, left_coins_got, right_commission, right_surcharge, right_coins_got);
+}
+
+slice get_supervisor() method_id {
+    load_data();
+
+    return supervisor;
+}

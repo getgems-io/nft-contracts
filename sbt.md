@@ -5,7 +5,7 @@ For this it stores immutable public key of the owner, and to change owner's addr
 #### Changing owner's address
 If you migrated to newer version of wallet and you want to move your SBT to it, you could send transfer to SBT from new wallet with payload:
 ```
-pull_ownership#03fdd6c9 query_id:uint64 signature:^(signature:(bits 512)) 
+pull_ownership#08496845 query_id:uint64 signature:^(bits 512) 
 sbt_nonce:uint64 new_owner:MsgAddress response_destination:MsgAddress 
 custom_payload:(Maybe ^Cell)
 ```
@@ -24,20 +24,20 @@ this way target contract could know that you are owner of SBT which relates to e
 
 To use this functionality SBT owner's wallet can send transfer with this scheme to SBT:
 ```
-prove_ownership#38061b82 query_id:uint64 dest:MsgAddress 
-data:^Cell with_content:bool
+prove_ownership#04ded148 query_id:uint64 dest:MsgAddress 
+forward_payload:^Cell with_content:Bool
 ```
 After that SBT will send transfer to `dest` with scheme:
 ```
-verify_ownership#01b628aa query_id:uint64 sbt_id:uint256 owner:MsgAddress 
+verify_ownership#1eac6b5d query_id:uint64 sbt_id:uint256 initiator:MsgAddress owner:MsgAddress 
 data:^Cell content:(Maybe ^Cell)
 ```
-If something goes wrong and target contract not accepts message and it will be bounced back to SBT, SBT will proxy this bounce to owner, this way coins will not stuck on SBT.
+If something goes wrong and target contract not accepts message, and it will be bounced back to SBT, SBT will proxy this bounce to owner, this way coins will not stuck on SBT.
 
 #### Verify SBT contract example
 
 ```C
-int op::verify_ownership() asm "0x01b628aa PUSHINT";
+int op::verify_ownership() asm "0x1eac6b5d PUSHINT";
 
 int equal_slices (slice a, slice b) asm "SDEQ";
 
@@ -77,7 +77,12 @@ slice calculate_sbt_address(slice collection_addr, cell sbt_item_code, int wc, i
     (slice collection_addr, cell sbt_code) = load_data();
     throw_unless(403, equal_slices(sender_address, collection_addr.calculate_sbt_address(sbt_code, 0, id)));
 
+    slice initiator_addr = in_msg~load_msg_addr();
     slice owner_addr = in_msg~load_msg_addr();
+    
+    ;; allow requests only initiated by SBT owner
+    throw_unless(401, equal_slices(initiator_addr, owner_addr));
+    
     cell payload = in_msg~load_ref();
 
     int with_content = in_msg~load_uint(1);

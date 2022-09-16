@@ -13,6 +13,7 @@ export type SbtItemData = {
     index: number
     collectionAddress: Address | null
     ownerAddress: Address
+    authorityAddress: Address
     content: string
     ownerPubKey: BN
     nonce: number
@@ -28,8 +29,12 @@ export function buildSbtItemDataCell(data: SbtItemData) {
     dataCell.bits.writeAddress(data.collectionAddress)
     dataCell.bits.writeAddress(data.ownerAddress)
     dataCell.refs.push(contentCell)
-    dataCell.bits.writeUint(data.ownerPubKey, 256)
-    dataCell.bits.writeUint(data.nonce, 64)
+    dataCell.bits.writeAddress(data.authorityAddress)
+
+    let ownerCell = new Cell()
+    ownerCell.bits.writeUint(data.ownerPubKey, 256)
+    ownerCell.bits.writeUint(data.nonce, 64)
+    dataCell.refs.push(ownerCell)
 
     return dataCell
 }
@@ -47,6 +52,7 @@ export type SbtSingleData = {
     ownerAddress: Address
     editorAddress: Address
     content: string
+    authorityAddress: Address
     ownerPubKey: BN
     nonce: number
 }
@@ -59,22 +65,29 @@ export function buildSingleSbtDataCell(data: SbtSingleData) {
     dataCell.bits.writeAddress(data.ownerAddress)
     dataCell.bits.writeAddress(data.editorAddress)
     dataCell.refs.push(contentCell)
-    dataCell.bits.writeUint(data.ownerPubKey, 256)
-    dataCell.bits.writeUint(data.nonce, 64)
+    dataCell.bits.writeAddress(data.authorityAddress)
+
+    let ownerCell = new Cell()
+    ownerCell.bits.writeUint(data.ownerPubKey, 256)
+    ownerCell.bits.writeUint(data.nonce, 64)
+    dataCell.refs.push(ownerCell)
 
     return dataCell
 }
 
 export const OperationCodes = {
     transfer: 0x5fcc3d14,
+    excesses: 0xd53276db,
     getStaticData: 0x2fcb26a2,
     getStaticDataResponse: 0x8b771735,
     EditContent: 0x1a0b9d51,
     TransferEditorship: 0x1c04412a,
-    PullOwnership: 0x03fdd6c9,
-    ProveOwnership: 0x38061b82,
-    VerifyOwnership: 0x01b628aa,
-    VerifyOwnershipBounced: 0x81b628aa
+    PullOwnership: 0x08496845,
+    ProveOwnership: 0x04ded148,
+    VerifyOwnership: 0x1eac6b5d,
+    VerifyOwnershipBounced: 0xb645e081,
+    Destroy: 0x1f04537a,
+    Revoke: 0x6f89f5e3
 }
 
 export const Queries = {
@@ -88,6 +101,18 @@ export const Queries = {
         msgBody.bits.writeCoins(params.forwardAmount || 0)
         msgBody.bits.writeBit(0) // no forward_payload yet
 
+        return msgBody
+    },
+    destroy: (params: { queryId?: number}) => {
+        let msgBody = new Cell()
+        msgBody.bits.writeUint(OperationCodes.Destroy, 32)
+        msgBody.bits.writeUint(params.queryId || 0, 64)
+        return msgBody
+    },
+    revoke: (params: { queryId?: number}) => {
+        let msgBody = new Cell()
+        msgBody.bits.writeUint(OperationCodes.Revoke, 32)
+        msgBody.bits.writeUint(params.queryId || 0, 64)
         return msgBody
     },
     pullOwnership: (params: { queryId?: number, nonce: number, key: KeyObject, newOwner?: Address, responseTo?: Address }) => {
