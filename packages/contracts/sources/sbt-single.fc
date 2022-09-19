@@ -56,14 +56,8 @@ global slice storage::authority_address;
 }
 
 () transfer_ownership(int my_balance, int query_id, slice sender_address, slice in_msg_body, int fwd_fees) impure inline {
-    throw_if(404, equal_slices(storage::owner_address, null_addr()));
-
     slice new_owner_address = in_msg_body~load_msg_addr();
     force_chain(new_owner_address);
-
-    throw_unless(401,
-            equal_slices(storage::authority_address, sender_address) |
-                    (equal_slices(storage::owner_address, sender_address) & equal_slices(new_owner_address, null_addr())));
 
     slice response_destination = in_msg_body~load_msg_addr();
     in_msg_body~load_int(1); ;; this sbt don't use custom_payload
@@ -251,6 +245,9 @@ global slice storage::authority_address;
         return ();
     }
     if (op == op::transfer()) {
+        throw_unless(401, equal_slices(storage::authority_address, sender_address));
+        throw_if(404, equal_slices(storage::owner_address, null_addr()));
+
         transfer_ownership(my_balance, query_id, sender_address, in_msg_body, fwd_fee);
         return ();
     }

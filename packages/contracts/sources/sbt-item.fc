@@ -216,6 +216,7 @@ global cell storage::content;
     }
     if (op == op::transfer()) {
         throw_unless(401, equal_slices(storage::authority_address, sender_address));
+        throw_if(404, equal_slices(storage::owner_address, null_addr()));
 
         transfer_ownership(my_balance, query_id, sender_address, in_msg_body, fwd_fee);
         return ();
