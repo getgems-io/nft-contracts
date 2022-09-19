@@ -160,12 +160,11 @@ describe('sbt item smc', () => {
 
         expect(res.exit_code).toEqual(0)
 
-        let [reserve, responseMessage] = res.actionList as [ReserveCurrencyAction, SendMsgAction]
+        let [responseMessage] = res.actionList as [SendMsgAction]
         let response = responseMessage.message.body.beginParse()
 
         let op = response.readUintNumber(32)
         expect(op).toEqual(OperationCodes.excesses)
-        expect(reserve.currency.coins.toNumber()).toEqual(toNano("0.05").toNumber())
 
         let data = await sbt.getNftData()
         if (!data.isInitialized) {
@@ -933,5 +932,34 @@ describe('single sbt', () => {
         }))
 
         expect(res.exit_code).toEqual(404)
+    })
+
+    it('should destroy', async () => {
+        let sbt = await SbtItemLocal.createSingle(singleConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.ownerAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.destroy({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(0)
+
+        let [responseMessage] = res.actionList as [SendMsgAction]
+        let response = responseMessage.message.body.beginParse()
+
+        let op = response.readUintNumber(32)
+        expect(op).toEqual(OperationCodes.excesses)
+
+        let data = await sbt.getNftData()
+        if (!data.isInitialized) {
+            throw new Error()
+        }
+
+        expect(data.ownerAddress).toEqual(null)
+        expect( await sbt.getAuthority()).toEqual(null)
     })
 })
