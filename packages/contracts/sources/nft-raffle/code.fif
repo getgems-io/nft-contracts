@@ -1,0 +1,664 @@
+"TonUtil.fif" include
+"Asm.fif" include
+// automatically generated from `./main.func` incl:`./../stdlib.fc` incl:`./struct/constants.func` incl:`./struct/storage.func` incl:`./struct/utils.func` incl:`./struct/handles.func` incl:`./struct/get-methods.func` 
+PROGRAM{
+  DECLPROC init_data
+  DECLPROC save_data
+  DECLPROC utils::send_nft
+  DECLPROC utils::send_raffled_nfts
+  DECLPROC utils::send_nfts
+  DECLPROC utils::add_nft
+  DECLPROC utils::raffle_nfts
+  112139 DECLMETHOD utils::check_conditions
+  DECLPROC utils::send_tons
+  DECLPROC handle::raffle
+  DECLPROC handle::return_nft
+  DECLPROC handle::receive_nft
+  DECLPROC handle::cancel
+  DECLPROC handle::add_coins
+  DECLPROC handle::maintain
+  123529 DECLMETHOD raffle_state
+  DECLPROC recv_internal
+  DECLGLOBVAR init?
+  DECLGLOBVAR db::state
+  DECLGLOBVAR db::right_nfts_count
+  DECLGLOBVAR db::right_nfts_received
+  DECLGLOBVAR db::left_nfts_count
+  DECLGLOBVAR db::left_nfts_received
+  DECLGLOBVAR db::left_user
+  DECLGLOBVAR db::right_user
+  DECLGLOBVAR db::super_user
+  DECLGLOBVAR db::left_commission
+  DECLGLOBVAR db::right_commission
+  DECLGLOBVAR db::left_coins_got
+  DECLGLOBVAR db::right_coins_got
+  DECLGLOBVAR db::coins_for_nft
+  DECLGLOBVAR db::left_nfts
+  DECLGLOBVAR db::right_nfts
+  DECLGLOBVAR db::raffled_nfts
+  init_data PROCREF:<{
+    init? GETGLOB
+    ISNULL
+    IFNOTJMP:<{
+    }>
+    c4 PUSH
+    CTOS
+    LDREF
+    SWAP
+    CTOS
+    2 LDU
+    SWAP
+    db::state SETGLOB
+    4 LDU
+    SWAP
+    db::right_nfts_count SETGLOB
+    4 LDU
+    SWAP
+    db::right_nfts_received SETGLOB
+    4 LDU
+    SWAP
+    db::left_nfts_count SETGLOB
+    4 LDU
+    DROP
+    db::left_nfts_received SETGLOB
+    LDREF
+    SWAP
+    CTOS
+    LDMSGADDR
+    SWAP
+    db::left_user SETGLOB
+    LDMSGADDR
+    SWAP
+    db::right_user SETGLOB
+    LDMSGADDR
+    DROP
+    db::super_user SETGLOB
+    LDREF
+    SWAP
+    CTOS
+    LDVARUINT16
+    SWAP
+    db::left_commission SETGLOB
+    LDVARUINT16
+    SWAP
+    db::right_commission SETGLOB
+    LDVARUINT16
+    SWAP
+    db::left_coins_got SETGLOB
+    LDVARUINT16
+    SWAP
+    db::right_coins_got SETGLOB
+    LDVARUINT16
+    DROP
+    db::coins_for_nft SETGLOB
+    LDREF
+    DROP
+    CTOS
+    LDDICT
+    SWAP
+    db::left_nfts SETGLOB
+    LDDICT
+    SWAP
+    db::right_nfts SETGLOB
+    LDDICT
+    DROP
+    db::raffled_nfts SETGLOB
+    TRUE
+    init? SETGLOB
+  }>
+  save_data PROCREF:<{
+    db::raffled_nfts GETGLOB
+    db::right_nfts GETGLOB
+    db::left_nfts GETGLOB
+    NEWC
+    STDICT
+    STDICT
+    STDICT
+    ENDC
+    NEWC
+    db::left_commission GETGLOB
+    STVARUINT16
+    db::right_commission GETGLOB
+    STVARUINT16
+    db::left_coins_got GETGLOB
+    STVARUINT16
+    db::right_coins_got GETGLOB
+    STVARUINT16
+    db::coins_for_nft GETGLOB
+    STVARUINT16
+    ENDC
+    NEWC
+    db::left_user GETGLOB
+    STSLICER
+    db::right_user GETGLOB
+    STSLICER
+    db::super_user GETGLOB
+    STSLICER
+    ENDC
+    db::left_nfts_received GETGLOB
+    db::left_nfts_count GETGLOB
+    db::right_nfts_received GETGLOB
+    db::right_nfts_count GETGLOB
+    db::state GETGLOB
+    NEWC
+    2 STU
+    4 STU
+    4 STU
+    4 STU
+    4 STU
+    ENDC
+    NEWC
+    STREF
+    STREF
+    STREF
+    STREF
+    ENDC
+    c4 POP
+  }>
+  utils::send_nft PROCREF:<{
+    0 PUSHINT
+    DUP
+    LTIME
+    0x5fcc3d14 PUSHINT
+    NEWC
+    32 STU
+    64 STU
+    s4 PUSH
+    STSLICER
+    s0 s4 XCHG2
+    STSLICER
+    s1 s3 XCHG
+    1 STI
+    s2 PUSH
+    STVARUINT16
+    s1 s2 XCHG
+    1 STI
+    ENDC
+    1 PUSHINT
+    0 PUSHINT
+    DUP
+    2 PUSHINT
+    24 PUSHINT
+    NEWC
+    6 STU
+    2 STU
+    1 STU
+    8 STU
+    s1 s3 XCHG
+    256 STU
+    s0 s3 XCHG2
+    STVARUINT16
+    107 STU
+    STREF
+    ENDC
+    SWAP
+    SENDRAWMSG
+  }>
+  utils::send_raffled_nfts PROCREF:<{
+    -1 PUSHINT
+    UNTIL:<{
+      s2 PUSH
+      8 PUSHPOW2
+      DICTUGETNEXT
+      NULLSWAPIFNOT2
+      DUP
+      IF:<{
+        s0 s2 XCHG
+        1 PLDU
+        1 EQINT
+        IF:<{
+          0 PUSHINT
+          db::left_user GETGLOB
+          s4 s2 s(-1) PU2XC
+          utils::send_nft INLINECALLDICT
+        }>ELSE<{
+          0 PUSHINT
+          db::right_user GETGLOB
+          s4 s2 s(-1) PU2XC
+          utils::send_nft INLINECALLDICT
+        }>
+      }>ELSE<{
+        s2 POP
+      }>
+      SWAP
+      NOT
+    }>
+    3 BLKDROP
+  }>
+  utils::send_nfts PROCREF:<{
+    -1 PUSHINT
+    UNTIL:<{
+      s3 PUSH
+      8 PUSHPOW2
+      DICTUGETNEXT
+      NULLSWAPIFNOT2
+      DUP
+      IF:<{
+        s0 s2 XCHG
+        1 PLDU
+        1 EQINT
+        IF:<{
+          1 PUSHINT
+          s4 s3 s1 PUSH3
+          utils::send_nft INLINECALLDICT
+        }>
+      }>ELSE<{
+        s2 POP
+      }>
+      SWAP
+      NOT
+    }>
+    4 BLKDROP
+  }>
+  utils::add_nft PROCREF:<{
+    s0 s1 PUSH2
+    8 PUSHPOW2
+    DICTUGET
+    NULLSWAPIFNOT
+    NIP
+    0 EQINT
+    IFJMP:<{
+      DROP
+      0 PUSHINT
+    }>
+    1 PUSHINT
+    NEWC
+    1 STU
+    ENDC
+    CTOS
+    s0 s2 XCHG
+    8 PUSHPOW2
+    DICTUSET
+    -1 PUSHINT
+  }>
+  utils::raffle_nfts PROCREF:<{
+    -1 PUSHINT
+    UNTIL:<{
+      s2 PUSH
+      8 PUSHPOW2
+      DICTUGETNEXT
+      NULLSWAPIFNOT2
+      s2 POP
+      OVER
+      IF:<{
+        2 PUSHINT
+        RAND
+        0 EQINT
+        IF:<{
+          1 PUSHINT
+          NEWC
+          1 STU
+          ENDC
+          CTOS
+          s0 s0 s5 XCPUXC
+          8 PUSHPOW2
+          DICTUSET
+        }>ELSE<{
+          0 PUSHINT
+          NEWC
+          1 STU
+          ENDC
+          CTOS
+          s0 s0 s5 XCPUXC
+          8 PUSHPOW2
+          DICTUSET
+        }>
+        s0 s4 XCHG
+      }>
+      SWAP
+      NOT
+    }>
+    DROP
+    NIP
+    -1 PUSHINT
+    UNTIL:<{
+      OVER
+      8 PUSHPOW2
+      DICTUGETNEXT
+      NULLSWAPIFNOT2
+      s2 POP
+      OVER
+      IF:<{
+        2 PUSHINT
+        RAND
+        0 EQINT
+        IF:<{
+          1 PUSHINT
+          NEWC
+          1 STU
+          ENDC
+          CTOS
+          s0 s0 s4 XCPUXC
+          8 PUSHPOW2
+          DICTUSET
+        }>ELSE<{
+          0 PUSHINT
+          NEWC
+          1 STU
+          ENDC
+          CTOS
+          s0 s0 s4 XCPUXC
+          8 PUSHPOW2
+          DICTUSET
+        }>
+        s0 s3 XCHG
+      }>
+      SWAP
+      NOT
+    }>
+    2DROP
+  }>
+  utils::check_conditions PROCREF:<{
+    init_data INLINECALLDICT
+    db::right_nfts_count GETGLOB
+    db::right_nfts_received GETGLOB
+    EQUAL
+    db::left_nfts_count GETGLOB
+    db::left_nfts_received GETGLOB
+    EQUAL
+    AND
+    db::left_coins_got GETGLOB
+    db::left_commission GETGLOB
+    GEQ
+    AND
+    db::right_coins_got GETGLOB
+    db::right_commission GETGLOB
+    GEQ
+    AND
+  }>
+  utils::send_tons PROCREF:<{
+    0 PUSHINT
+    DUP
+    24 PUSHINT
+    NEWC
+    6 STU
+    s0 s6 XCHG2
+    STSLICER
+    s0 s4 XCHG2
+    STVARUINT16
+    s1 s4 XCHG
+    107 STU
+    s1 s2 XCHG
+    32 STU
+    SWAP
+    STSLICER
+    ENDC
+    SWAP
+    SENDRAWMSG
+  }>
+  handle::raffle PROCREF:<{
+    3 PUSHINT
+    db::state SETGLOB
+    db::raffled_nfts GETGLOB
+    db::left_nfts GETGLOB
+    db::right_nfts GETGLOB
+    utils::raffle_nfts INLINECALLDICT
+    db::raffled_nfts SETGLOB
+    db::raffled_nfts GETGLOB
+    db::coins_for_nft GETGLOB
+    utils::send_raffled_nfts INLINECALLDICT
+    1000000 PUSHINT
+    0 PUSHINT
+    RAWRESERVE
+    db::super_user GETGLOB
+    0 PUSHINT
+    <b 124 word NFT raffle commission| $, b> <s PUSHSLICE
+    130 PUSHINT
+    utils::send_tons INLINECALLDICT
+    save_data INLINECALLDICT
+  }>
+  handle::return_nft PROCREF:<{
+    64 PUSHINT
+    SDSKIPFIRST
+    LDMSGADDR
+    DROP
+    SWAP
+    REWRITESTDADDR
+    NIP
+    64 PUSHINT
+    s0 s2 XCHG
+    0 PUSHINT
+    s0 s2 XCHG
+    utils::send_nft INLINECALLDICT
+  }>
+  handle::receive_nft PROCREF:<{
+    db::coins_for_nft GETGLOB
+    s2 s(-1) PUXC
+    SUB
+    0 LESSINT
+    db::state GETGLOB
+    1 PUSHINT
+    NEQ
+    OR
+    IFJMP:<{
+      NIP
+      handle::return_nft INLINECALLDICT
+    }>
+    s2 PUSH
+    REWRITESTDADDR
+    NIP
+    db::left_nfts GETGLOB
+    OVER
+    utils::add_nft INLINECALLDICT
+    db::right_nfts GETGLOB
+    s0 s3 XCHG2
+    utils::add_nft INLINECALLDICT
+    s3 s(-1) PUXC
+    OR
+    NOT
+    IFJMP:<{
+      s3 s4 XCHG
+      4 BLKDROP
+      handle::return_nft INLINECALLDICT
+    }>
+    s3 POP
+    s4 POP
+    s0 s3 XCHG
+    db::left_nfts SETGLOB
+    db::right_nfts SETGLOB
+    SWAP
+    IF:<{
+      db::left_nfts_received GETGLOB
+      INC
+      db::left_nfts_received SETGLOB
+      db::left_coins_got GETGLOB
+      SWAP
+      ADD
+      db::left_coins_got SETGLOB
+    }>ELSE<{
+      db::right_nfts_received GETGLOB
+      INC
+      db::right_nfts_received SETGLOB
+      db::right_coins_got GETGLOB
+      SWAP
+      ADD
+      db::right_coins_got SETGLOB
+    }>
+    utils::check_conditions INLINECALLDICT
+    IF:<{
+      handle::raffle INLINECALLDICT
+    }>
+    save_data INLINECALLDICT
+  }>
+  handle::cancel PROCREF:<{
+    1001 PUSHINT
+    db::state GETGLOB
+    1 PUSHINT
+    NEQ
+    THROWANYIF
+    1001 PUSHINT
+    utils::check_conditions INLINECALLDICT
+    THROWANYIF
+    2 PUSHINT
+    db::state SETGLOB
+    db::left_nfts GETGLOB
+    db::coins_for_nft GETGLOB
+    db::left_user GETGLOB
+    utils::send_nfts INLINECALLDICT
+    db::right_nfts GETGLOB
+    db::coins_for_nft GETGLOB
+    db::right_user GETGLOB
+    utils::send_nfts INLINECALLDICT
+    1000000 PUSHINT
+    0 PUSHINT
+    RAWRESERVE
+    db::left_user GETGLOB
+    db::left_coins_got GETGLOB
+    <b 124 word NFT raffle canceled| $, b> <s PUSHSLICE
+    2 PUSHINT
+    utils::send_tons INLINECALLDICT
+    db::right_user GETGLOB
+    db::right_coins_got GETGLOB
+    <b 124 word NFT raffle canceled| $, b> <s PUSHSLICE
+    2 PUSHINT
+    utils::send_tons INLINECALLDICT
+    db::super_user GETGLOB
+    0 PUSHINT
+    <b 124 word NFT raffle canceled| $, b> <s PUSHSLICE
+    130 PUSHINT
+    utils::send_tons INLINECALLDICT
+    save_data INLINECALLDICT
+  }>
+  handle::add_coins PROCREF:<{
+    DROP
+    NIP
+    1001 PUSHINT
+    db::state GETGLOB
+    1 PUSHINT
+    EQUAL
+    THROWANYIFNOT
+    OVER
+    1 EQINT
+    IF:<{
+      db::left_coins_got GETGLOB
+      OVER
+      ADD
+      db::left_coins_got SETGLOB
+    }>
+    SWAP
+    2 EQINT
+    IF:<{
+      db::right_coins_got GETGLOB
+      SWAP
+      ADD
+      db::right_coins_got SETGLOB
+    }>ELSE<{
+      DROP
+    }>
+    utils::check_conditions INLINECALLDICT
+    IF:<{
+      handle::raffle INLINECALLDICT
+    }>
+    save_data INLINECALLDICT
+  }>
+  handle::maintain PROCREF:<{
+    1002 PUSHINT
+    db::super_user GETGLOB
+    s1 s3 XCHG
+    SDEQ
+    s1 s2 XCHG
+    THROWANYIFNOT
+    LDREF
+    8 LDU
+    DROP
+    SENDRAWMSG
+  }>
+  raffle_state PROC:<{
+    init_data INLINECALLDICT
+    db::state GETGLOB
+    db::right_nfts_count GETGLOB
+    db::right_nfts_received GETGLOB
+    db::left_nfts_count GETGLOB
+    db::left_nfts_received GETGLOB
+    db::left_user GETGLOB
+    db::right_user GETGLOB
+    db::super_user GETGLOB
+    db::left_commission GETGLOB
+    db::right_commission GETGLOB
+    db::left_coins_got GETGLOB
+    db::right_coins_got GETGLOB
+    db::coins_for_nft GETGLOB
+    db::left_nfts GETGLOB
+    db::right_nfts GETGLOB
+    db::raffled_nfts GETGLOB
+  }>
+  recv_internal PROC:<{
+    s3 POP
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    0 THROWIF
+    init_data INLINECALLDICT
+    LDMSGADDR
+    DROP
+    s0 s2 XCHG
+    32 LDU
+    db::left_user GETGLOB
+    s4 s(-1) PUXC
+    SDEQ
+    db::right_user GETGLOB
+    s5 s(-1) PUXC
+    SDEQ
+    db::super_user GETGLOB
+    s6 s(-1) PUXC
+    SDEQ
+    0x05138d91 PUSHINT
+    s5 s(-1) PUXC
+    EQUAL
+    IFJMP:<{
+      s3 s4 XCHG
+      4 BLKDROP
+      handle::receive_nft INLINECALLDICT
+    }>
+    2001 PUSHINT
+    s5 s(-1) PUXC
+    EQUAL
+    IFJMP:<{
+      3 3 BLKDROP2
+      s3 POP
+      1002 PUSHINT
+      -ROT
+      OR
+      ROT
+      OR
+      THROWANYIFNOT
+      handle::cancel INLINECALLDICT
+    }>
+    DROP
+    2002 PUSHINT
+    s4 s(-1) PUXC
+    EQUAL
+    IFJMP:<{
+      s3 POP
+      1002 PUSHINT
+      s3 s1 PUSH2
+      OR
+      THROWANYIFNOT
+      0 PUSHINT
+      SWAP
+      IF:<{
+        DROP
+        1 PUSHINT
+      }>
+      s0 s2 XCHG
+      IF:<{
+        2 PUSHINT
+        s2 POP
+      }>
+      s3 s3 s0 XCHG3
+      handle::add_coins INLINECALLDICT
+    }>
+    2DROP
+    s2 POP
+    2003 PUSHINT
+    EQUAL
+    IFJMP:<{
+      handle::maintain INLINECALLDICT
+    }>
+    2DROP
+    16 PUSHPOW2DEC
+    THROWANY
+  }>
+}END>c
