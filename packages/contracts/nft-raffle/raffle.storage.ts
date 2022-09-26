@@ -23,16 +23,16 @@ interface CommissionSlice {
     leftCommission: BN
     rightCommission: BN
     coinsForNft: BN
+    coinsForCommission: BN
 }
 
-interface NFTItem {
+export interface NFTItem {
     addr: Address
-    received: boolean
+    received: number
 }
 
 interface DictSlice {
-    leftNfts: NFTItem[]
-    rightNfts: NFTItem[]
+    nfts: NFTItem[]
 }
 
 export interface RaffleStorage {
@@ -64,26 +64,18 @@ function encodeRaffleStorage
         .storeCoins(new BN(0))
         .storeCoins(new BN(0))
         .storeCoins(raffleStorage.commissionSlice.coinsForNft)
+        .storeCoins(raffleStorage.commissionSlice.coinsForCommission)
         .endCell()
-    const leftNfts = new DictBuilder(256)
-    if (raffleStorage.dictSlice.leftNfts.length > 0) {
-        for (let i = 0; i < raffleStorage.dictSlice.leftNfts.length; i += 1) {
-            const bitCell = new Cell()
-            bitCell.bits.writeBit(raffleStorage.dictSlice.leftNfts[i].received)
-            leftNfts.storeCell(new BN(raffleStorage.dictSlice.leftNfts[i].addr.hash), bitCell)
-        }
-    }
-    const rightNfts = new DictBuilder(256)
-    if (raffleStorage.dictSlice.rightNfts.length > 0) {
-        for (let i = 0; i < raffleStorage.dictSlice.rightNfts.length; i += 1) {
-            const bitCell = new Cell()
-            bitCell.bits.writeBit(raffleStorage.dictSlice.rightNfts[i].received)
-            rightNfts.storeCell(new BN(raffleStorage.dictSlice.rightNfts[i].addr.hash), bitCell)
+    const nfts = new DictBuilder(256)
+    if (raffleStorage.dictSlice.nfts.length > 0) {
+        for (let i = 0; i < raffleStorage.dictSlice.nfts.length; i += 1) {
+            const value = new Cell()
+            value.bits.writeUint(raffleStorage.dictSlice.nfts[i].received, 4)
+            nfts.storeCell(new BN(raffleStorage.dictSlice.nfts[i].addr.hash), value)
         }
     }
     const dictCell = new Builder()
-        .storeDict(leftNfts.endCell())
-        .storeDict(rightNfts.endCell())
+        .storeDict(nfts.endCell())
         .storeDict(new DictBuilder(256).endDict())
     const storageCell = new Builder()
         .storeRef(stateCell)

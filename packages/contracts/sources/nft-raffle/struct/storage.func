@@ -14,9 +14,9 @@ global int      db::right_commission;
 global int      db::left_coins_got;
 global int      db::right_coins_got;
 global int      db::coins_for_nft;
+global int      db::coins_for_commission;
 
-global cell     db::left_nfts;
-global cell     db::right_nfts;
+global cell     db::nfts;
 global cell     db::raffled_nfts;
 
 
@@ -40,15 +40,15 @@ global cell     db::raffled_nfts;
     db::super_user  = addr_slice~load_msg_addr();
 
     slice commission_slice = ds~load_ref().begin_parse();
-    db::left_commission     = commission_slice~load_coins();
-    db::right_commission    = commission_slice~load_coins();
-    db::left_coins_got      = commission_slice~load_coins();
-    db::right_coins_got     = commission_slice~load_coins();
-    db::coins_for_nft       = commission_slice~load_coins();
+    db::left_commission         = commission_slice~load_coins();
+    db::right_commission        = commission_slice~load_coins();
+    db::left_coins_got          = commission_slice~load_coins();
+    db::right_coins_got         = commission_slice~load_coins();
+    db::coins_for_nft           = commission_slice~load_coins();
+    db::coins_for_commission    = commission_slice~load_coins();
 
     slice dict_slice = ds~load_ref().begin_parse();  
-    db::left_nfts = dict_slice~load_dict();
-    db::right_nfts = dict_slice~load_dict();
+    db::nfts = dict_slice~load_dict();
     db::raffled_nfts = dict_slice~load_dict();
     init? = true;
 }
@@ -79,12 +79,12 @@ global cell     db::raffled_nfts;
             .store_coins(db::left_coins_got)
             .store_coins(db::right_coins_got)
             .store_coins(db::coins_for_nft)
+            .store_coins(db::coins_for_commission)
             .end_cell()
         )
         .store_ref( ;; dict slice
             begin_cell()
-            .store_dict(db::left_nfts)
-            .store_dict(db::right_nfts)
+            .store_dict(db::nfts)
             .store_dict(db::raffled_nfts)
             .end_cell()
         )

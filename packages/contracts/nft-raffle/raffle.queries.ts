@@ -3,47 +3,50 @@ import BN from 'bn.js'
 import { SmartContract } from 'ton-contract-executor'
 import { getRandSigner } from './raffle.signers'
 
-class queries {
-    public static nftOwnerAssigned (
-        queryId: BN,
-        prevOwner: Address,
-        op: number = 0x05138d91
-    ): Cell {
+export const OperationCodes = {
+    ownershipAssigned: 0x05138d91,
+    cancel: 2001,
+    addCoins: 2002,
+    maintain: 2003,
+    sendAgain: 2004,
+}
+
+export const Queries = {
+    nftOwnerAssigned: (params: { queryId?: number, prevOwner: Address}) => {
+        const msgBody = new Cell()
+        msgBody.bits.writeUint(OperationCodes.ownershipAssigned, 32)
+        msgBody.bits.writeUint(params.queryId || 0, 64)
+        msgBody.bits.writeAddress(params.prevOwner)
+
+        return msgBody
+    },
+    cancel: () => {
         const msg = new Builder()
-            .storeUint(op, 32)
-            .storeUint(queryId, 64)
-            .storeAddress(prevOwner)
-            .storeBit(0)
-
+            .storeUint(OperationCodes.cancel, 32)
         return msg.endCell()
-    }
-
-    public static cancel (): Cell {
+    },
+    addCoins: () => {
         const msg = new Builder()
-            .storeUint(2001, 32)
-
+            .storeUint(OperationCodes.addCoins, 32)
         return msg.endCell()
-    }
-
-    public static addCoins (): Cell {
-        const msg = new Builder()
-            .storeUint(2002, 32)
-        return msg.endCell()
-    }
-
-    public static sendTrans (): Cell {
+    },
+    sendTrans: () => {
         const body = new Builder()
             .storeUint(0x18, 6)
             .storeAddress(getRandSigner())
             .storeCoins(toNano(0.1))
             .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
         const msg = new Builder()
-            .storeUint(2003, 32)
+            .storeUint(OperationCodes.maintain, 32)
             .storeRef(body.endCell())
             .storeUint(0, 8)
             .endCell()
         return msg
+    },
+    sendAgain: () => {
+        const msg = new Builder()
+            .storeUint(OperationCodes.sendAgain, 32)
+            .endCell()
+        return msg
     }
 }
-
-export { queries }

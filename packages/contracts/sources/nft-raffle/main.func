@@ -1,9 +1,3 @@
-#include "../stdlib.fc";
-#include "struct/constants.func";
-#include "struct/storage.func";
-#include "struct/utils.func";
-#include "struct/handles.func";
-#include "struct/get-methods.func";
 
 
 {-
@@ -46,6 +40,11 @@
             sender = 2;
         }
         handle::add_coins(sender, sender_addr, msg_value, in_msg_body);
+        return ();
+    }
+
+    if (op == op::send_again()) {
+        handle::send_again(msg_value);
         return ();
     }
 

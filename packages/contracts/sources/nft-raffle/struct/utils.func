@@ -33,42 +33,42 @@
     } until (~ found);
 }
 
-() utils::send_nfts(cell dict, int amount, slice to) impure inline_ref {
+() utils::send_nfts(cell dict, int amount, slice left, slice right) impure inline_ref {
     int key = -1;
     do {
         (key, slice data, int found) = dict.udict_get_next?(256, key);
         if (found) {
-            if (data.preload_uint(1) == 1) {
-                utils::send_nft(1, amount, to, key);
+            if (data.preload_uint(4) == 2) {
+                utils::send_nft(1, amount, left, key);
+            }
+            if (data.preload_uint(4) == 3) {
+                utils::send_nft(1, amount, right, key);
             }
         }
     } until (~ found);
 }
 
-(cell, int) utils::add_nft(cell dict, int nft_addr) inline_ref {
+(cell, int, int) utils::add_nft(cell dict, int nft_addr) inline_ref {
+    int left_success = 0;
+    int right_success = 0;
     (slice data, int found) = dict.udict_get?(256, nft_addr);
     if (found == 0) {
-        return (dict, 0);
+        return (dict, 0, 0);
     }
-    dict~udict_set(256, nft_addr, begin_cell().store_uint(1, 1).end_cell().begin_parse());
-    return(dict, -1);
+    if (data~load_uint(4) == 0) {
+        dict~udict_set(256, nft_addr, begin_cell().store_uint(2, 4).end_cell().begin_parse());
+        left_success = -1;
+    } else {
+        dict~udict_set(256, nft_addr, begin_cell().store_uint(3, 4).end_cell().begin_parse());
+        right_success = -1;
+    }
+    return(dict, left_success, right_success);
 }
 
-cell utils::raffle_nfts(cell raffled_nfts, cell left_dict, cell right_dict) inline_ref {
+cell utils::raffle_nfts(cell raffled_nfts, cell nfts) inline_ref {
     int key = -1;
     do {
-        (key, slice data, int found) = left_dict.udict_get_next?(256, key);
-        if (found) {
-            if (rand(2) == 0) {
-                raffled_nfts~udict_set(256, key, begin_cell().store_uint(1, 1).end_cell().begin_parse());
-            } else {
-                raffled_nfts~udict_set(256, key, begin_cell().store_uint(0, 1).end_cell().begin_parse());
-            }
-        }
-    } until (~ found)
-    int key = -1;
-    do {
-        (key, slice data, int found) = right_dict.udict_get_next?(256, key);
+        (key, slice data, int found) = nfts.udict_get_next?(256, key);
         if (found) {
             if (rand(2) == 0) {
                 raffled_nfts~udict_set(256, key, begin_cell().store_uint(1, 1).end_cell().begin_parse());

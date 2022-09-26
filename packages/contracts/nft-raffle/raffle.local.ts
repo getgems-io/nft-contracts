@@ -4,6 +4,8 @@ import { SmartContract } from 'ton-contract-executor'
 import { encodeRaffleStorage, RaffleStorage } from './raffle.storage'
 import * as fs from 'fs'
 import BN from 'bn.js'
+import { compileFunc } from "../../utils/compileFunc";
+import { RaffleSource } from './raffle.source'
 
 
 
@@ -21,12 +23,15 @@ type StateResponse = {
     leftCoinsGot: BN,
     rightCoinsGot: BN,
     coinsForNft: BN,
-    leftNfts: Map<string, boolean> | null,
-    rightNfts: Map<string, boolean> | null,
+    nfts: Map<string, number> | null,
     raffledNfts: Map<string, boolean> | null
 }
 
-function DictToMap (slice : Slice): boolean {
+function DictToMapN (slice : Slice): number {
+    return slice.readUint(4).toNumber().valueOf()
+}
+
+function DictToMapB (slice: Slice): boolean {
     return slice.readBit()
 }
 
@@ -47,23 +52,18 @@ export class RaffleLocal {
         const [ state, rightNftsCount, rightNftsReceived, leftNftsCount,
             leftNftsReceived, leftUser, rightUser, superUser, leftCommission,
             rightCommission, leftCoinsGot, rightCoinsGot,
-            coinsForNft, leftNfts, rightNfts, raffledNfts ] = res.result as [BN, BN,
+            coinsForNft, nfts, raffledNfts ] = res.result as [BN, BN,
             BN, BN,
             BN, Slice, Slice, Slice, BN, BN, BN, BN, BN, Cell, Cell, Cell]
-        const leftMap = leftNfts ? parseDict<boolean>(
-            leftNfts.beginParse(),
+        const nftMap = nfts ? parseDict<number>(
+            nfts.beginParse(),
             256,
-            DictToMap
-        ) : null
-        const rightMap = rightNfts ? parseDict<boolean>(
-            rightNfts.beginParse(),
-            256,
-            DictToMap
+            DictToMapN
         ) : null
         const raffledMap = raffledNfts ? parseDict<boolean>(
             raffledNfts.beginParse(),
             256,
-            DictToMap
+            DictToMapB
         ) : null
         return {
             state: state ? state.toNumber() : 0,
@@ -79,21 +79,15 @@ export class RaffleLocal {
             leftCoinsGot: leftCoinsGot,
             rightCoinsGot: rightCoinsGot,
             coinsForNft: coinsForNft,
-            leftNfts: leftMap,
-            rightNfts: rightMap,
+            nfts: nftMap,
             raffledNfts: raffledMap
         }
     }
 
-    static bocFileToTCell (filename: string): Cell {
-        const file = fs.readFileSync(filename)
-        return Cell.fromBoc(file)[0]
-    }
-
     static async createFromConfig(raffleStorage: RaffleStorage) {
-        const code = RaffleLocal.bocFileToTCell('./packages/contracts/sources/nft-raffle/code.boc')
+        const code = await compileFunc(RaffleSource)
         const data = encodeRaffleStorage(raffleStorage)
-        const smc = await SmartContract.fromCell(code, data)
+        const smc = await SmartContract.fromCell(code.cell, data)
 
         const address = contractAddress({
             workchain: 0,
