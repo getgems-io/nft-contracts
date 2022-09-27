@@ -59,6 +59,7 @@
 
 () handle::add_coins(int sender, slice addr, int msg_value, slice in_msg_body) impure inline_ref {
     throw_unless(err::state(), db::state == state::active());
+    throw_if(err::coins(), msg_value < min_tons_for_operation());
     if (sender == 1) {
         db::left_coins_got += (msg_value - min_tons_for_operation());
     }
