@@ -103,7 +103,6 @@ export class RaffleLocal {
         const code = await compileFunc(RaffleSource)
         const data = encodeRaffleStorage(raffleStorage)
         const smc = await SmartContract.fromCell(code.cell, data)
-
         const address = contractAddress({
             workchain: 0,
             initialData: smc.dataCell,
