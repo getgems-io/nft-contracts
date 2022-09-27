@@ -1,7 +1,6 @@
 import { Builder, Address, Cell, Slice, parseDict, toNano } from 'ton'
 import BN from 'bn.js'
-import { SmartContract } from 'ton-contract-executor'
-import { getRandSigner } from './raffle.signers'
+import { randomAddress } from '../../utils/randomAddress'
 
 export const OperationCodes = {
     ownershipAssigned: 0x05138d91,
@@ -33,7 +32,7 @@ export const Queries = {
     sendTrans: () => {
         const body = new Builder()
             .storeUint(0x18, 6)
-            .storeAddress(getRandSigner())
+            .storeAddress(randomAddress())
             .storeCoins(toNano(0.1))
             .storeUint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
         const msg = new Builder()

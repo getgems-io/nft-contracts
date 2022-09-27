@@ -22,17 +22,33 @@ type StateResponse = {
     rightCommission: BN,
     leftCoinsGot: BN,
     rightCoinsGot: BN,
-    coinsForNft: BN,
-    nfts: Map<string, number> | null,
-    raffledNfts: Map<string, boolean> | null
+    nftTransferFee: BN,
+    marketplaceFee: BN,
+    nfts: Map<string, string> | null,
+    raffledNfts: Map<string, string> | null
 }
 
-function DictToMapN (slice : Slice): number {
-    return slice.readUint(4).toNumber().valueOf()
+function DictToMapN (slice : Slice): string {
+    const value = slice.readUint(4).toNumber()
+    if (value == 0) {
+        return 'left not received'
+    }
+    if (value == 1) {
+        return 'right not received'
+    }
+    if (value == 2) {
+        return 'left received'
+    } else {
+        return 'right received'
+    }
 }
 
-function DictToMapB (slice: Slice): boolean {
-    return slice.readBit()
+function DictToMapB (slice: Slice): string {
+    if(slice.readBit() == false) {
+        return 'left'
+    } else {
+        return 'right'
+    }
 }
 
 export class RaffleLocal {
@@ -52,15 +68,15 @@ export class RaffleLocal {
         const [ state, rightNftsCount, rightNftsReceived, leftNftsCount,
             leftNftsReceived, leftUser, rightUser, superUser, leftCommission,
             rightCommission, leftCoinsGot, rightCoinsGot,
-            coinsForNft, nfts, raffledNfts ] = res.result as [BN, BN,
+            nftTransferFee, marketplaceFee, nfts, raffledNfts ] = res.result as [BN, BN,
             BN, BN,
-            BN, Slice, Slice, Slice, BN, BN, BN, BN, BN, Cell, Cell, Cell]
-        const nftMap = nfts ? parseDict<number>(
+            BN, Slice, Slice, Slice, BN, BN, BN, BN, BN, BN, Cell, Cell, Cell]
+        const nftMap = nfts ? parseDict<string>(
             nfts.beginParse(),
             256,
             DictToMapN
         ) : null
-        const raffledMap = raffledNfts ? parseDict<boolean>(
+        const raffledMap = raffledNfts ? parseDict<string>(
             raffledNfts.beginParse(),
             256,
             DictToMapB
@@ -78,7 +94,8 @@ export class RaffleLocal {
             rightCommission: rightCommission,
             leftCoinsGot: leftCoinsGot,
             rightCoinsGot: rightCoinsGot,
-            coinsForNft: coinsForNft,
+            nftTransferFee: nftTransferFee,
+            marketplaceFee: marketplaceFee,
             nfts: nftMap,
             raffledNfts: raffledMap
         }

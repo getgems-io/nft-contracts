@@ -1,7 +1,7 @@
 () handle::raffle() impure inline_ref {
     db::state = state::completed();
     db::raffled_nfts = utils::raffle_nfts(db::raffled_nfts, db::nfts);
-    utils::send_raffled_nfts(db::raffled_nfts, db::coins_for_nft);
+    utils::send_raffled_nfts(db::raffled_nfts, db::nft_transfer_fee);
     raw_reserve(min_tons_for_storage(), 0);
     utils::send_tons(db::super_user, 0, msg::commission(), 130);
     save_data();
@@ -16,7 +16,7 @@
 }
 
 () handle::receive_nft(slice nft_addr, int msg_value, slice in_msg_body) impure inline_ref {
-    int extra_coins = msg_value - db::coins_for_nft - db::coins_for_commission;
+    int extra_coins = msg_value - db::nft_transfer_fee - db::marketplace_fee;
 
     if ((extra_coins < min_tons_for_operation()) | (db::state != state::active())) {
         handle::return_nft(nft_addr,in_msg_body);
@@ -32,11 +32,11 @@
     db::nfts = nfts;
     if (left_success) {
         db::left_nfts_received += 1;
-        db::left_coins_got += (db::coins_for_nft + db::coins_for_commission);
+        db::left_coins_got += (db::nft_transfer_fee + db::marketplace_fee);
     } 
     if(right_success) {
         db::right_nfts_received += 1;
-        db::right_coins_got += (db::coins_for_nft + db::coins_for_commission);
+        db::right_coins_got += (db::nft_transfer_fee + db::marketplace_fee);
     }
     if (utils::check_conditions()) {
         handle::raffle();
@@ -48,7 +48,7 @@
     throw_if(err::state(), db::state != state::active());
     throw_if(err::state(), utils::check_conditions());
     db::state = state::canceled();
-    db::nfts.utils::send_nfts(db::coins_for_nft, db::left_user, db::right_user);
+    db::nfts.utils::send_nfts(db::nft_transfer_fee, db::left_user, db::right_user);
 
     raw_reserve(min_tons_for_storage(), 0);
 
@@ -80,7 +80,7 @@
 
 () handle::send_again(int msg_value) impure inline_ref {
     throw_if(err::state(), db::state != state::completed());
-    int need_coins = (db::left_nfts_count + db::right_nfts_count) * db::coins_for_nft;
+    int need_coins = (db::left_nfts_count + db::right_nfts_count) * db::nft_transfer_fee;
     throw_if(err::coins(), msg_value < need_coins);
     int coins_for_nft = msg_value / (db::left_nfts_count + db::right_nfts_count);
     utils::send_raffled_nfts(db::raffled_nfts, coins_for_nft);

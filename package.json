@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "GetGems NFT contracts",
   "main": "index.js",
+  "scripts": {
+    "test": "mocha './packages/contracts/nft-raffle/**/*.test.ts' --require ts-node/register"
+},
   "author": "Narek Abovyan <xeroxaltox@gmail.com>",
   "license": "MIT",
   "devDependencies": {

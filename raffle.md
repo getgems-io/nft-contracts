@@ -19,7 +19,7 @@ left_nfts_received:uint4 = StateInfo;
 
 addr_info#_ left_user:MsgAddress right_user:MsgAddress super_user:MsgAddress = AddressInfo;
 
-commission_info#_ left_commission:Coins right_commission:Coins left_coins_got:Coins right_coins_got:Coins coins_for_nft:Coins coins_for_commission:Coins = CommissionInfo;
+commission_info#_ left_commission:Coins right_commission:Coins left_coins_got:Coins right_coins_got:Coins nft_transfer_fee:Coins marketplace_fee:Coins = CommissionInfo;
 
 dict_info#_ nfts:(HashmapE 256 uint4) raffled_nfts:(HashmapE 256 Bool) = DictInfo;
 
@@ -46,9 +46,9 @@ storage#_ state:StateInfo addr:AddressInfo commissions:CommissionInfo dict:DictI
 
 * `right coins got` - the commission received by the right-handed participant, Initially should be `0`.
 
-* `coins for nft` - the commission for sending NFTs, which is used to send NFTs after a successful raffle.
+* `nft transfer fee` - the commission for sending NFTs, which is used to send NFTs after a successful raffle.
 
-* `coins for commission` - the commission for marketplace, marketplace receive it after successful raffle.
+* `marketplace commission` - the commission for marketplace, marketplace receive it after successful raffle.
 
 * `nfts` - a dictionary that contains all addresses as keys, and their status as values. `0` - left nft, not received, `1` right nft, not received, `2` - left nft, received, `3` - right nft, received.
 

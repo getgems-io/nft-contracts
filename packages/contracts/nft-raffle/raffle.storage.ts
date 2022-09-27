@@ -6,40 +6,18 @@ function buffer256ToDec (buff: Buffer): string {
     const build = new Builder().storeBuffer(buff).endCell()
     return build.beginParse().readUint(256).toString(10)
 }
-
-interface StateSlice {
+export interface RaffleStorage {
     state: number
     rightNftsCount: number
     leftNftsCount: number
-}
-
-interface AddrSlice {
     leftUser: Address
     rightUser: Address
     superUser: Address
-}
-
-interface CommissionSlice {
     leftCommission: BN
     rightCommission: BN
-    coinsForNft: BN
-    coinsForCommission: BN
-}
-
-export interface NFTItem {
-    addr: Address
-    received: number
-}
-
-interface DictSlice {
-    nfts: NFTItem[]
-}
-
-export interface RaffleStorage {
-    stateSlice: StateSlice,
-    addrSlice: AddrSlice,
-    commissionSlice: CommissionSlice,
-    dictSlice: DictSlice
+    nftTransferFee: BN
+    marketplaceFee: BN
+    nfts: { address: Address, owner: 'left' | 'right'}[]
 }
 
 function encodeRaffleStorage
@@ -47,31 +25,32 @@ function encodeRaffleStorage
     raffleStorage: RaffleStorage
 ): Cell {
     const stateCell = new Builder()
-        .storeUint(raffleStorage.stateSlice.state, 2)
-        .storeUint(raffleStorage.stateSlice.rightNftsCount, 4)
+        .storeUint(raffleStorage.state, 2)
+        .storeUint(raffleStorage.rightNftsCount, 4)
         .storeUint(0, 4)
-        .storeUint(raffleStorage.stateSlice.leftNftsCount, 4)
+        .storeUint(raffleStorage.leftNftsCount, 4)
         .storeUint(0, 4)
         .endCell()
     const addrCell = new Builder()
-        .storeAddress(raffleStorage.addrSlice.leftUser)
-        .storeAddress(raffleStorage.addrSlice.rightUser)
-        .storeAddress(raffleStorage.addrSlice.superUser)
+        .storeAddress(raffleStorage.leftUser)
+        .storeAddress(raffleStorage.rightUser)
+        .storeAddress(raffleStorage.superUser)
         .endCell()
     const commissionCell = new Builder()
-        .storeCoins(raffleStorage.commissionSlice.leftCommission)
-        .storeCoins(raffleStorage.commissionSlice.rightCommission)
+        .storeCoins(raffleStorage.leftCommission)
+        .storeCoins(raffleStorage.rightCommission)
         .storeCoins(new BN(0))
         .storeCoins(new BN(0))
-        .storeCoins(raffleStorage.commissionSlice.coinsForNft)
-        .storeCoins(raffleStorage.commissionSlice.coinsForCommission)
+        .storeCoins(raffleStorage.nftTransferFee)
+        .storeCoins(raffleStorage.marketplaceFee)
         .endCell()
     const nfts = new DictBuilder(256)
-    if (raffleStorage.dictSlice.nfts.length > 0) {
-        for (let i = 0; i < raffleStorage.dictSlice.nfts.length; i += 1) {
+    if (raffleStorage.nfts.length > 0) {
+        for (let i = 0; i < raffleStorage.nfts.length; i += 1) {
             const value = new Cell()
-            value.bits.writeUint(raffleStorage.dictSlice.nfts[i].received, 4)
-            nfts.storeCell(new BN(raffleStorage.dictSlice.nfts[i].addr.hash), value)
+            const owner = raffleStorage.nfts[i].owner === 'left' ? 0 : 1
+            value.bits.writeUint(owner, 4)
+            nfts.storeCell(new BN(raffleStorage.nfts[i].address.hash), value)
         }
     }
     const dictCell = new Builder()
