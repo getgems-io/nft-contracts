@@ -14,7 +14,6 @@ global int      db::right_commission;
 global int      db::left_coins_got;
 global int      db::right_coins_got;
 global int      db::nft_transfer_fee;
-global int      db::marketplace_fee;
 
 global cell     db::nfts;
 global cell     db::raffled_nfts;
@@ -45,7 +44,6 @@ global cell     db::raffled_nfts;
     db::left_coins_got          = commission_slice~load_coins();
     db::right_coins_got         = commission_slice~load_coins();
     db::nft_transfer_fee        = commission_slice~load_coins();
-    db::marketplace_fee         = commission_slice~load_coins();
 
     slice dict_slice = ds~load_ref().begin_parse();  
     db::nfts = dict_slice~load_dict();
@@ -79,7 +77,6 @@ global cell     db::raffled_nfts;
             .store_coins(db::left_coins_got)
             .store_coins(db::right_coins_got)
             .store_coins(db::nft_transfer_fee)
-            .store_coins(db::marketplace_fee)
             .end_cell()
         )
         .store_ref( ;; dict slice

@@ -23,7 +23,6 @@ type StateResponse = {
     leftCoinsGot: BN,
     rightCoinsGot: BN,
     nftTransferFee: BN,
-    marketplaceFee: BN,
     nfts: Map<string, string> | null,
     raffledNfts: Map<string, string> | null
 }
@@ -68,9 +67,9 @@ export class RaffleLocal {
         const [ state, rightNftsCount, rightNftsReceived, leftNftsCount,
             leftNftsReceived, leftUser, rightUser, superUser, leftCommission,
             rightCommission, leftCoinsGot, rightCoinsGot,
-            nftTransferFee, marketplaceFee, nfts, raffledNfts ] = res.result as [BN, BN,
+            nftTransferFee, nfts, raffledNfts ] = res.result as [BN, BN,
             BN, BN,
-            BN, Slice, Slice, Slice, BN, BN, BN, BN, BN, BN, Cell, Cell, Cell]
+            BN, Slice, Slice, Slice, BN, BN, BN, BN, BN, Cell, Cell, Cell]
         const nftMap = nfts ? parseDict<string>(
             nfts.beginParse(),
             256,
@@ -95,7 +94,6 @@ export class RaffleLocal {
             leftCoinsGot: leftCoinsGot,
             rightCoinsGot: rightCoinsGot,
             nftTransferFee: nftTransferFee,
-            marketplaceFee: marketplaceFee,
             nfts: nftMap,
             raffledNfts: raffledMap
         }

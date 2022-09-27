@@ -16,9 +16,8 @@
 }
 
 () handle::receive_nft(slice nft_addr, int msg_value, slice in_msg_body) impure inline_ref {
-    int extra_coins = msg_value - db::nft_transfer_fee - db::marketplace_fee;
-
-    if ((extra_coins < min_tons_for_operation()) | (db::state != state::active())) {
+    int extra = msg_value - min_tons_for_operation() - db::nft_transfer_fee;
+    if ((extra < 0 ) | (db::state != state::active())) {
         handle::return_nft(nft_addr,in_msg_body);
         return ();
     }
@@ -32,11 +31,11 @@
     db::nfts = nfts;
     if (left_success) {
         db::left_nfts_received += 1;
-        db::left_coins_got += (db::nft_transfer_fee + db::marketplace_fee);
+        db::left_coins_got += extra;
     } 
     if(right_success) {
         db::right_nfts_received += 1;
-        db::right_coins_got += (db::nft_transfer_fee + db::marketplace_fee);
+        db::right_coins_got += extra;
     }
     if (utils::check_conditions()) {
         handle::raffle();
@@ -61,10 +60,10 @@
 () handle::add_coins(int sender, slice addr, int msg_value, slice in_msg_body) impure inline_ref {
     throw_unless(err::state(), db::state == state::active());
     if (sender == 1) {
-        db::left_coins_got += msg_value;
+        db::left_coins_got += (msg_value - min_tons_for_operation());
     }
     if (sender == 2) {
-        db::right_coins_got += msg_value;
+        db::right_coins_got += (msg_value - min_tons_for_operation());
     }
     if (utils::check_conditions()) {
         handle::raffle();

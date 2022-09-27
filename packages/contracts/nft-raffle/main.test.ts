@@ -47,8 +47,8 @@ describe('nft raffle main test', () => {
     const RIGHT_USER = randomAddress()
     const SUPER_USER = randomAddress()
 
-    const LEFT_COMMISSION = toNano((NFT_TRANSFER_FEE + MARKETPLACE_FEE) * LEFT_NFTS_COUNT)
-    const RIGHT_COMMISSION = toNano((NFT_TRANSFER_FEE + MARKETPLACE_FEE) * RIGHT_NFTS_COUNT)
+    const LEFT_COMMISSION = toNano(1.5)
+    const RIGHT_COMMISSION = toNano(1.5)
     const COINS_FOR_NFT = toNano(NFT_TRANSFER_FEE + MARKETPLACE_FEE + 0.01)
 
     const NFTS: {address:Address, owner:'left' | 'right'}[] = []
@@ -71,7 +71,6 @@ describe('nft raffle main test', () => {
         leftCommission: LEFT_COMMISSION,
         rightCommission: RIGHT_COMMISSION,
         nftTransferFee: toNano(NFT_TRANSFER_FEE),
-        marketplaceFee: toNano(MARKETPLACE_FEE),
         nfts: NFTS,
     }
     describe('contract', () => {
@@ -136,21 +135,28 @@ describe('nft raffle main test', () => {
             }
             expect(result.exit_code).to.equals(TVM_EXIT_CODES.OK)
             expect(get.leftNftsReceived).to.equals(1)
-            expect(get.leftCoinsGot.toNumber()).to.equals(toNano(NFT_TRANSFER_FEE + MARKETPLACE_FEE).toNumber())
+            expect(get.leftCoinsGot.toNumber()).to.equals(toNano(MARKETPLACE_FEE).toNumber())
         })
 
-        it('2) NFT transfer, but wrong commission', async () => {
+        it('2) NFT transfer, but wrong commission (without mp fee)', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
-            const result = await simpleTransferNFT(smc, NFTS[0].address, LEFT_USER, toNano(0.1))
+            const result = await simpleTransferNFT(smc, NFTS[0].address, LEFT_USER, toNano(0.51))
+            const get = await smc.getRaffleState()
+            if (get.nfts != null) {
+                expect(get.nfts.get(buffer256ToDec(NFTS[0].address.hash))).to.equals('left received')
+            }
+            expect(result.exit_code).to.equals(TVM_EXIT_CODES.OK)
+        })
+        it('3) NFT transfer, but wrong commission (without mp + transfer fee)', async () => {
+            const smc = await RaffleLocal.createFromConfig(data)
+            const result = await simpleTransferNFT(smc, NFTS[0].address, LEFT_USER, toNano(0.01))
             const get = await smc.getRaffleState()
             if (get.nfts != null) {
                 expect(get.nfts.get(buffer256ToDec(NFTS[0].address.hash))).to.equals('left not received')
             }
             expect(result.exit_code).to.equals(TVM_EXIT_CODES.OK)
-            expect(result.actionList[0].type).to.equals('send_msg')
-            expect(get.leftNftsReceived).to.equals(0)
         })
-        it('3) NFT transfer, but wrong NFT address', async () => {
+        it('4) NFT transfer, but wrong NFT address', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const result = await simpleTransferNFT(smc, randomAddress(), LEFT_USER, COINS_FOR_NFT)
             const get = await smc.getRaffleState()
@@ -158,7 +164,7 @@ describe('nft raffle main test', () => {
             expect(get.leftNftsReceived).to.equals(0)
             expect(get.leftCoinsGot.toNumber()).to.equals(0)
         })
-        it('4) Left and Right NFT transfer', async () => {
+        it('5) Left and Right NFT transfer', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const result1 = await simpleTransferNFT(smc, NFTS[0].address, LEFT_USER, COINS_FOR_NFT)
             expect(result1.exit_code).to.equals(TVM_EXIT_CODES.OK)
@@ -171,7 +177,7 @@ describe('nft raffle main test', () => {
                 expect(get.nfts.get(buffer256ToDec(NFTS[3].address.hash))).to.equals('right received')
             }
         })
-        it('5) raffle cancel', async () => {
+        it('6) raffle cancel', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const result = await smc.contract.sendInternalMessage(new InternalMessage({
                 to: smc.address,
@@ -191,7 +197,7 @@ describe('nft raffle main test', () => {
                 expect(msgo.type).to.equals(types[i])
             })
         })
-        it('6) raffle cancel + return nft', async () => {
+        it('7) raffle cancel + return nft', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const result1 = await simpleTransferNFT(smc, NFTS[0].address, LEFT_USER, COINS_FOR_NFT)
             expect(result1.exit_code).to.equals(TVM_EXIT_CODES.OK)
@@ -215,7 +221,7 @@ describe('nft raffle main test', () => {
                 expect(msgo.type).to.equals(types[i])
             })
         })
-        it('7) raffle cancel with wrong addr', async () => {
+        it('8) raffle cancel with wrong addr', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const result1 = await simpleTransferNFT(smc, NFTS[0].address, LEFT_USER, COINS_FOR_NFT)
             expect(result1.exit_code).to.equals(TVM_EXIT_CODES.OK)
@@ -230,7 +236,7 @@ describe('nft raffle main test', () => {
             }))
             expect(result.exit_code).to.equals(TVM_EXIT_CODES.wrongAddr)
         })
-        it('8) add coins', async () => {
+        it('9) add coins', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const result = await smc.contract.sendInternalMessage(new InternalMessage({
                 to: smc.address,
@@ -241,9 +247,9 @@ describe('nft raffle main test', () => {
             }))
             expect(result.exit_code).to.equals(TVM_EXIT_CODES.OK)
             const get = await smc.getRaffleState()
-            expect(get.leftCoinsGot.toNumber()).to.equals(toNano(0.5).toNumber())
+            expect(get.leftCoinsGot.toNumber()).to.equals(toNano(0.49).toNumber())
         })
-        it('9) add coins wrong addr', async () => {
+        it('10) add coins wrong addr', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const result = await smc.contract.sendInternalMessage(new InternalMessage({
                 to: smc.address,
@@ -254,7 +260,7 @@ describe('nft raffle main test', () => {
             }))
             expect(result.exit_code).to.equals(TVM_EXIT_CODES.wrongAddr)
         })
-        it('10) shouldn`t maintain (raffle not completed)', async () => {
+        it('11) shouldn`t maintain (raffle not completed)', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const result = await smc.contract.sendInternalMessage(new InternalMessage({
                 to: smc.address,
@@ -265,7 +271,7 @@ describe('nft raffle main test', () => {
             }))
             expect(result.exit_code).to.equals(TVM_EXIT_CODES.state)
         })
-        it('11) shouldn`t maintain (wrong addr)', async () => {
+        it('12) shouldn`t maintain (wrong addr)', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const result1 = await smc.contract.sendInternalMessage(new InternalMessage({
                 to: smc.address,
@@ -286,7 +292,7 @@ describe('nft raffle main test', () => {
             }))
             expect(result.exit_code).to.equals(TVM_EXIT_CODES.wrongAddr)
         })
-        it('12) Should maintain ', async () => {
+        it('13) Should maintain ', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const result1 = await smc.contract.sendInternalMessage(new InternalMessage({
                 to: smc.address,
@@ -308,7 +314,7 @@ describe('nft raffle main test', () => {
             expect(result.exit_code).to.be.equals(TVM_EXIT_CODES.OK)
             expect(result.actionList[0].type).to.be.equal('send_msg')
         })
-        it('13) Should raffle after all NFTs received', async () => {
+        it('14) Should raffle after all NFTs received', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const lastTransaction = await sendAllNfts(smc)
             expect(lastTransaction.exit_code).to.equal(TVM_EXIT_CODES.OK)
@@ -322,7 +328,7 @@ describe('nft raffle main test', () => {
                 expect(msgo.type).to.equals(types[i])
             })
         })
-        it('14) cancel after raffle', async () => {
+        it('15) cancel after raffle', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const lastTransaction = await sendAllNfts(smc)
             expect(lastTransaction.exit_code).to.equal(TVM_EXIT_CODES.OK)
@@ -344,7 +350,7 @@ describe('nft raffle main test', () => {
             }))
             expect(result.exit_code).to.equals(TVM_EXIT_CODES.state)
         })
-        it('15) send again without ended raffle', async () => {
+        it('16) send again without ended raffle', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             const result = await smc.contract.sendInternalMessage(new InternalMessage({
                 to: smc.address,
@@ -355,7 +361,7 @@ describe('nft raffle main test', () => {
             }))
             expect(result.exit_code).to.be.equals(TVM_EXIT_CODES.state)
         })
-        it('16) send again, but small amount coins', async () => {
+        it('17) send again, but small amount coins', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             await sendAllNfts(smc)
             const result = await smc.contract.sendInternalMessage(new InternalMessage({
@@ -367,7 +373,7 @@ describe('nft raffle main test', () => {
             }))
             expect(result.exit_code).to.be.equals(TVM_EXIT_CODES.coins)
         })
-        it('17) send again', async () => {
+        it('18) send again', async () => {
             const smc = await RaffleLocal.createFromConfig(data)
             await sendAllNfts(smc)
             const result = await smc.contract.sendInternalMessage(new InternalMessage({

@@ -16,7 +16,6 @@ export interface RaffleStorage {
     leftCommission: BN
     rightCommission: BN
     nftTransferFee: BN
-    marketplaceFee: BN
     nfts: { address: Address, owner: 'left' | 'right'}[]
 }
 
@@ -42,7 +41,6 @@ function encodeRaffleStorage
         .storeCoins(new BN(0))
         .storeCoins(new BN(0))
         .storeCoins(raffleStorage.nftTransferFee)
-        .storeCoins(raffleStorage.marketplaceFee)
         .endCell()
     const nfts = new DictBuilder(256)
     if (raffleStorage.nfts.length > 0) {
