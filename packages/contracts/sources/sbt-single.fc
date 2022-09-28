@@ -11,12 +11,14 @@ int min_tons_for_storage() asm "50000000 PUSHINT"; ;; 0.05 TON
 ;;  MsgAddressInt editor_address
 ;;  cell content
 ;;  MsgAddressInt authority_address
+;;  uint64 revoked_at
 ;;
 
 global slice storage::editor_address;
 global slice storage::owner_address;
 global cell storage::content;
 global slice storage::authority_address;
+global int storage::revoked_at;
 
 () load_data() impure {
     slice ds = get_data().begin_parse();
@@ -25,6 +27,7 @@ global slice storage::authority_address;
     storage::editor_address    = ds~load_msg_addr();
     storage::content           = ds~load_ref();
     storage::authority_address = ds~load_msg_addr();
+    storage::revoked_at        = ds~load_uint(64);
 }
 
 () store_data() impure {
@@ -34,6 +37,7 @@ global slice storage::authority_address;
                     .store_slice(storage::editor_address)
                     .store_ref(storage::content)
                     .store_slice(storage::authority_address)
+                    .store_uint(storage::revoked_at, 64)
                     .end_cell()
     );
 }
@@ -53,39 +57,6 @@ global slice storage::authority_address;
             .store_uint(query_id, 64);
 
     send_raw_message(msg.end_cell(), send_mode);
-}
-
-() transfer_ownership(int my_balance, int query_id, slice sender_address, slice in_msg_body, int fwd_fees) impure inline {
-    slice new_owner_address = in_msg_body~load_msg_addr();
-    force_chain(new_owner_address);
-
-    slice response_destination = in_msg_body~load_msg_addr();
-    in_msg_body~load_int(1); ;; this sbt don't use custom_payload
-    int forward_amount = in_msg_body~load_coins();
-
-    int rest_amount = my_balance - min_tons_for_storage();
-    if (forward_amount) {
-        rest_amount -= (forward_amount + fwd_fees);
-    }
-    int need_response = response_destination.preload_uint(2) != 0; ;; if NOT addr_none: 00
-    if (need_response) {
-        rest_amount -= fwd_fees;
-    }
-
-    throw_unless(402, rest_amount >= 0); ;; base sbt spends fixed amount of gas, will not check for response
-
-    if (forward_amount) {
-        send_msg(flag::regular(), new_owner_address, forward_amount, op::ownership_assigned(), query_id, begin_cell().store_slice(storage::owner_address).store_slice(in_msg_body), 1);  ;; paying fees, revert on errors
-    }
-    if (need_response) {
-        force_chain(response_destination);
-
-        ;; mode 1 = paying fees, revert on errors
-        send_msg(flag::regular(), response_destination, rest_amount, op::excesses(), query_id, null(), 1);
-    }
-
-    storage::owner_address = new_owner_address;
-    store_data();
 }
 
 () transfer_editorship(int my_balance, slice sender_address, int query_id, slice in_msg_body, int fwd_fees) impure inline {
@@ -168,12 +139,6 @@ global slice storage::authority_address;
         return ();
     }
 
-    cs~load_msg_addr(); ;; skip dst
-    cs~load_coins(); ;; skip value
-    cs~skip_bits(1); ;; skip extracurrency collection
-    cs~load_coins(); ;; skip ihr_fee
-    int fwd_fee = cs~load_coins(); ;; we use message fwd_fee for estimation of response costs
-
     int query_id = in_msg_body~load_uint(64);
 
     if (op == op::get_static_data()) {
@@ -193,6 +158,7 @@ global slice storage::authority_address;
                 .store_slice(sender_address)
                 .store_slice(storage::owner_address)
                 .store_ref(body)
+                .store_uint(storage::revoked_at, 64)
                 .store_uint(with_content, 1);
 
         if (with_content != 0) {
@@ -214,6 +180,7 @@ global slice storage::authority_address;
                 .store_uint(0, 256)
                 .store_slice(storage::owner_address)
                 .store_ref(body)
+                .store_uint(storage::revoked_at, 64)
                 .store_uint(with_content, 1);
 
         if (with_content != 0) {
@@ -244,12 +211,16 @@ global slice storage::authority_address;
         store_data();
         return ();
     }
-    if (op == op::transfer()) {
+    if (op == op::revoke()) {
         throw_unless(401, equal_slices(storage::authority_address, sender_address));
-        throw_if(404, equal_slices(storage::owner_address, null_addr()));
+        throw_unless(403, storage::revoked_at == 0);
 
-        transfer_ownership(my_balance, query_id, sender_address, in_msg_body, fwd_fee);
+        storage::revoked_at = now();
+        store_data();
         return ();
+    }
+    if (op == op::transfer()) {
+        throw(413);
     }
     throw(0xffff);
 }
@@ -271,4 +242,9 @@ slice get_editor() method_id {
 slice get_authority_address() method_id {
     load_data();
     return storage::authority_address;
+}
+
+int get_revoked_time() method_id {
+    load_data();
+    return storage::revoked_at;
 }
