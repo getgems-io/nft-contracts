@@ -1,10 +1,10 @@
 # SBT
-Soul bound token is a special kind of NFT which can be transferred only by authority.
-For this it stores immutable authority address, and to change owner's address it is needed to send transfer from authority's address to sbt with a new owner's address.
-Authority can be null, then SBT is not transferable. Owner could always destroy his SBT.
+Soul bound token (SBT) is a special kind of NFT which can not be transferred. 
+It includes optional certificate mechanics with revoke by authority and onchain ownership proofs. 
+Holder can destroy his SBT in any time.
 
 #### Issuing (minting)
-Before mnt, authority (collection owner) should verify wallet code offchain, and make sure that some tradeable contract is not used. 
+Before mint, authority (collection owner) should verify wallet code offchain, and make sure that some tradeable contract is not used. 
 
 #### Revoke
 Issuer can revoke SBT, using message with schema:
@@ -31,10 +31,10 @@ SBT contracts has a feature that let you implement interesting mechanics with co
 You can send message to SBT, and it will proxify message to target contract with its index, owner's address and initiator address in body, together with any useful for contract payload, 
 this way target contract could know that you are owner of SBT which relates to expected collection. Contract could know that SBT relates to collection by calculating address of SBT using code and index, and comparing it with sender.
 
-There are 2 methods which allow to use this functionality, **ownership proof** and **ownership prove**. 
-The difference is that prove can be called only by SBT owner, so it is preferred to use when you need to accept messages only from owner, for example votes in DAO.
+There are 2 methods which allow to use this functionality, **ownership proof** and **ownership info**. 
+The difference is that proof can be called only by SBT owner, so it is preferred to use when you need to accept messages only from owner, for example votes in DAO.
 
-##### Ownership prove
+##### Ownership proof
 **SBT owner** can send message to SBT with this schema:
 ```
 prove_ownership#04ded148 query_id:uint64 dest:MsgAddress 
@@ -47,7 +47,7 @@ data:^Cell revoked_at:uint64 content:(Maybe ^Cell)
 ```
 If something goes wrong and target contract not accepts message, and it will be bounced back to SBT, SBT will proxy this bounce to owner, this way coins will not stuck on SBT.
 
-##### Ownership proof
+##### Ownership info
 **anyone** can send message to SBT with this schema:
 ```
 request_owner#d0c3bfea query_id:uint64 dest:MsgAddress 
