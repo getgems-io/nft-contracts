@@ -94,10 +94,10 @@ describe('sbt item smc', () => {
             })
         }))
 
-        expect(res.exit_code).toEqual(401)
+        expect(res.exit_code).toEqual(413)
     })
 
-    it('should transfer by authority', async () => {
+    it('should not transfer by authority', async () => {
         let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
         let newOwner = randomAddress()
         let res = await sbt.contract.sendInternalMessage(new InternalMessage({
@@ -114,36 +114,7 @@ describe('sbt item smc', () => {
             })
         }))
 
-        expect(res.exit_code).toEqual(0)
-
-        let data = await sbt.getNftData()
-        if (!data.isInitialized) {
-            throw new Error()
-        }
-
-        expect(data.ownerAddress?.toFriendly()).toEqual(newOwner.toFriendly())
-    })
-
-    it('should not transfer by authority after destroy', async () => {
-        let cfg = Object.create(defaultConfig)
-        cfg.ownerAddress = null;
-        let sbt = await SbtItemLocal.createFromConfig(cfg)
-        let newOwner = randomAddress()
-        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
-            to: sbt.address,
-            from: defaultConfig.authorityAddress,
-            value: toNano(1),
-            bounce: false,
-            body: new CommonMessageInfo({
-                body: new CellMessage(Queries.transfer({
-                    newOwner,
-                    forwardAmount: toNano('0.01'),
-                    responseTo: randomAddress()
-                }))
-            })
-        }))
-
-        expect(res.exit_code).toEqual(404)
+        expect(res.exit_code).toEqual(413)
     })
 
     it('should destroy', async () => {
@@ -246,6 +217,7 @@ describe('sbt item smc', () => {
         let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
         let withCont = response.readBit()
         let cont = response.readRef()
 
@@ -256,6 +228,7 @@ describe('sbt item smc', () => {
         expect(sender.toFriendly()).toEqual(someGuy.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
         expect(withCont).toEqual(true)
         expect(cont.readBuffer(4).toString()).toEqual('test')
     })
@@ -291,6 +264,7 @@ describe('sbt item smc', () => {
         let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
         let withCont = response.readBit()
         let cont = response.readRef()
 
@@ -301,6 +275,7 @@ describe('sbt item smc', () => {
         expect(sender.toFriendly()).toEqual(requester.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
         expect(withCont).toEqual(true)
         expect(cont.readBuffer(4).toString()).toEqual('test')
     })
@@ -335,6 +310,7 @@ describe('sbt item smc', () => {
         let index = response.readUintNumber(256)
         let owner = response.readAddress() as Address
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
         let withCont = response.readBit()
         let cont = response.readRef()
 
@@ -344,6 +320,7 @@ describe('sbt item smc', () => {
         expect(index).toEqual(777)
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
         expect(withCont).toEqual(true)
         expect(cont.readBuffer(4).toString()).toEqual('test')
     })
@@ -380,6 +357,7 @@ describe('sbt item smc', () => {
         let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
         let withCont = response.readBit()
 
 
@@ -389,6 +367,7 @@ describe('sbt item smc', () => {
         expect(sender.toFriendly()).toEqual(guy.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
         expect(withCont).toEqual(false)
     })
 
@@ -422,14 +401,17 @@ describe('sbt item smc', () => {
         let queryId = response.readUintNumber(64)
         let index = response.readUintNumber(256)
         let owner = response.readAddress() as Address
-        response.readBit()
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
+        response.readBit()
+
 
         expect(op).toEqual(OperationCodes.OwnershipProofBounced)
         expect(queryId).toEqual(0)
         expect(index).toEqual(777)
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
     })
 
     it('should prove proof bounce to initiator', async () => {
@@ -466,8 +448,9 @@ describe('sbt item smc', () => {
         let index = response.readUintNumber(256)
         let initiator = response.readAddress() as Address
         let owner = response.readAddress() as Address
-        response.readBit()
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
+        response.readBit()
 
         expect(op).toEqual(OperationCodes.OwnerInfoBounced)
         expect(queryId).toEqual(0)
@@ -475,6 +458,7 @@ describe('sbt item smc', () => {
         expect(initiator.toFriendly()).toEqual(initer.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
     })
 
     it('should not verify ownership non bounced', async () => {
@@ -499,6 +483,41 @@ describe('sbt item smc', () => {
         }))
 
         expect(res.exit_code).toEqual(0xffff)
+    })
+
+    it('should revoke', async () => {
+        let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.authorityAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.revoke({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(0)
+
+        let tm = await sbt.getRevokedTime()
+        if (tm != 111) {
+            throw new Error()
+        }
+    })
+
+    it('should not revoke', async () => {
+        let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.ownerAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.revoke({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(401)
     })
 })
 
@@ -598,7 +617,7 @@ describe('single sbt', () => {
             })
         }))
 
-        expect(res.exit_code).toEqual(401)
+        expect(res.exit_code).toEqual(413)
     })
 
     it('random guy prove ownership', async () => {
@@ -657,6 +676,7 @@ describe('single sbt', () => {
         let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
         let withCont = response.readBit()
         let cont = response.readRef()
 
@@ -667,6 +687,7 @@ describe('single sbt', () => {
         expect(sender.toFriendly()).toEqual(someGuy.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
         expect(withCont).toEqual(true)
         expect(decodeOffChainContent(cont.toCell())).toEqual('test_content')
     })
@@ -702,6 +723,7 @@ describe('single sbt', () => {
         let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
         let withCont = response.readBit()
         let cont = response.readRef()
 
@@ -712,6 +734,7 @@ describe('single sbt', () => {
         expect(sender.toFriendly()).toEqual(requester.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
         expect(withCont).toEqual(true)
         expect(decodeOffChainContent(cont.toCell())).toEqual('test_content')
     })
@@ -746,6 +769,7 @@ describe('single sbt', () => {
         let index = response.readUintNumber(256)
         let owner = response.readAddress() as Address
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
         let withCont = response.readBit()
         let cont = response.readRef()
 
@@ -755,6 +779,7 @@ describe('single sbt', () => {
         expect(index).toEqual(0)
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
         expect(withCont).toEqual(true)
         expect(decodeOffChainContent(cont.toCell())).toEqual('test_content')
     })
@@ -791,6 +816,7 @@ describe('single sbt', () => {
         let sender = response.readAddress() as Address
         let owner = response.readAddress() as Address
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
         let withCont = response.readBit()
 
 
@@ -800,6 +826,7 @@ describe('single sbt', () => {
         expect(sender.toFriendly()).toEqual(guy.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
         expect(withCont).toEqual(false)
     })
 
@@ -833,14 +860,16 @@ describe('single sbt', () => {
         let queryId = response.readUintNumber(64)
         let index = response.readUintNumber(256)
         let owner = response.readAddress() as Address
-        response.readBit()
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
+        response.readBit()
 
         expect(op).toEqual(OperationCodes.OwnershipProofBounced)
         expect(queryId).toEqual(0)
         expect(index).toEqual(777)
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
     })
 
     it('should prove proof bounce to initiator', async () => {
@@ -877,8 +906,9 @@ describe('single sbt', () => {
         let index = response.readUintNumber(256)
         let initiator = response.readAddress() as Address
         let owner = response.readAddress() as Address
-        response.readBit()
         let data = response.readRef()
+        let revokedAt = response.readUintNumber(64)
+        response.readBit()
 
         expect(op).toEqual(OperationCodes.OwnerInfoBounced)
         expect(queryId).toEqual(0)
@@ -886,6 +916,7 @@ describe('single sbt', () => {
         expect(initiator.toFriendly()).toEqual(initer.toFriendly())
         expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
         expect(data.readUint(16).toNumber()).toEqual(888)
+        expect(revokedAt).toEqual(0)
     })
 
     it('should not pass prove ownership non bounced', async () => {
@@ -910,28 +941,6 @@ describe('single sbt', () => {
         }))
 
         expect(res.exit_code).toEqual(0xffff)
-    })
-
-    it('should not transfer by authority after destroy', async () => {
-        let cfg = Object.create(singleConfig)
-        cfg.ownerAddress = null;
-        let sbt = await SbtItemLocal.createSingle(cfg)
-        let newOwner = randomAddress()
-        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
-            to: sbt.address,
-            from: defaultConfig.authorityAddress,
-            value: toNano(1),
-            bounce: false,
-            body: new CommonMessageInfo({
-                body: new CellMessage(Queries.transfer({
-                    newOwner,
-                    forwardAmount: toNano('0.01'),
-                    responseTo: randomAddress()
-                }))
-            })
-        }))
-
-        expect(res.exit_code).toEqual(404)
     })
 
     it('should destroy', async () => {
@@ -961,5 +970,40 @@ describe('single sbt', () => {
 
         expect(data.ownerAddress).toEqual(null)
         expect( await sbt.getAuthority()).toEqual(null)
+    })
+
+    it('should revoke', async () => {
+        let sbt = await SbtItemLocal.createSingle(singleConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.authorityAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.revoke({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(0)
+
+        let tm = await sbt.getRevokedTime()
+        if (tm != 111) {
+            throw new Error()
+        }
+    })
+
+    it('should not revoke', async () => {
+        let sbt = await SbtItemLocal.createSingle(singleConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.ownerAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.revoke({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(401)
     })
 })

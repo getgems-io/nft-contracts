@@ -11,6 +11,7 @@ export type SbtItemData = {
     ownerAddress: Address
     authorityAddress: Address
     content: string
+    revokedAt?: number
 }
 
 export function buildSbtItemDataCell(data: SbtItemData) {
@@ -24,6 +25,7 @@ export function buildSbtItemDataCell(data: SbtItemData) {
     dataCell.bits.writeAddress(data.ownerAddress)
     dataCell.refs.push(contentCell)
     dataCell.bits.writeAddress(data.authorityAddress)
+    dataCell.bits.writeUint(data.revokedAt ? data.revokedAt : 0, 64)
 
     return dataCell
 }
@@ -42,6 +44,7 @@ export type SbtSingleData = {
     editorAddress: Address
     content: string
     authorityAddress: Address
+    revokedAt?: number
 }
 
 export function buildSingleSbtDataCell(data: SbtSingleData) {
@@ -53,6 +56,7 @@ export function buildSingleSbtDataCell(data: SbtSingleData) {
     dataCell.bits.writeAddress(data.editorAddress)
     dataCell.refs.push(contentCell)
     dataCell.bits.writeAddress(data.authorityAddress)
+    dataCell.bits.writeUint(data.revokedAt ? data.revokedAt : 0, 64)
 
     return dataCell
 }
@@ -65,12 +69,13 @@ export const OperationCodes = {
     EditContent: 0x1a0b9d51,
     TransferEditorship: 0x1c04412a,
     ProveOwnership: 0x04ded148,
-    OwnershipProof: 0x6ecd55cc,
+    OwnershipProof: 0x0524c7ae,
     OwnershipProofBounced: 0xc18e86d2,
     RequestOwnerInfo: 0xd0c3bfea,
-    OwnerInfo: 0xc2fa9387,
+    OwnerInfo: 0x0dd607e3,
     OwnerInfoBounced: 0x7ca7b0fe,
     Destroy: 0x1f04537a,
+    Revoke: 0x6f89f5e3
 }
 
 export const Queries = {
@@ -89,6 +94,12 @@ export const Queries = {
     destroy: (params: { queryId?: number}) => {
         let msgBody = new Cell()
         msgBody.bits.writeUint(OperationCodes.Destroy, 32)
+        msgBody.bits.writeUint(params.queryId || 0, 64)
+        return msgBody
+    },
+    revoke: (params: { queryId?: number}) => {
+        let msgBody = new Cell()
+        msgBody.bits.writeUint(OperationCodes.Revoke, 32)
         msgBody.bits.writeUint(params.queryId || 0, 64)
         return msgBody
     },
@@ -122,6 +133,7 @@ export const Queries = {
         msgBody.bits.writeUint(params.id, 256)
         msgBody.bits.writeAddress(params.owner)
         msgBody.refs.push(params.data)
+        msgBody.bits.writeUint(0, 64)
         msgBody.bits.writeBit(true)
         msgBody.refs.push(beginCell().endCell())
 
@@ -138,6 +150,7 @@ export const Queries = {
         msgBody.bits.writeAddress(params.initiator)
         msgBody.bits.writeAddress(params.owner)
         msgBody.refs.push(params.data)
+        msgBody.bits.writeUint(0, 64)
         msgBody.bits.writeBit(true)
         msgBody.refs.push(beginCell().endCell())
 

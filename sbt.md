@@ -6,6 +6,13 @@ Authority can be null, then SBT is not transferable. Owner could always destroy 
 #### Issuing (minting)
 Before mnt, authority (collection owner) should verify wallet code offchain, and make sure that some tradeable contract is not used. 
 
+#### Revoke
+Issuer can revoke SBT, using message with schema:
+```
+revoke#6f89f5e3 query_id:uint64 = InternalMsgBody
+```
+After that SBT will be marked as revoked and will have revoke time set. It can be checked using GET method `get_revoked_time`
+
 #### Changing owner's address
 Authority needs to send simple NFT transfer message with address of the new owner. 
 It is useful in case if owner lost access to his wallet and needs to restore SBT, he could ask authority to transfer SBT to new account.
@@ -35,8 +42,8 @@ forward_payload:^Cell with_content:Bool = InternalMsgBody;
 ```
 After that SBT will send transfer to `dest` with scheme:
 ```
-ownership_proof#6ecd55cc query_id:uint64 item_id:uint256 owner:MsgAddress 
-data:^Cell content:(Maybe ^Cell)
+ownership_proof#0524c7ae query_id:uint64 item_id:uint256 owner:MsgAddress 
+data:^Cell revoked_at:uint64 content:(Maybe ^Cell)
 ```
 If something goes wrong and target contract not accepts message, and it will be bounced back to SBT, SBT will proxy this bounce to owner, this way coins will not stuck on SBT.
 
@@ -48,15 +55,15 @@ forward_payload:^Cell with_content:Bool = InternalMsgBody;
 ```
 After that SBT will send transfer to `dest` with scheme:
 ```
-owner_info#c2fa9387 query_id:uint64 item_id:uint256 initiator:MsgAddress owner:MsgAddress 
-data:^Cell content:(Maybe ^Cell)
+owner_info#0dd607e3 query_id:uint64 item_id:uint256 initiator:MsgAddress owner:MsgAddress 
+data:^Cell revoked_at:uint64 content:(Maybe ^Cell)
 ```
 If something goes wrong and target contract not accepts message, and it will be bounced back to SBT, SBT will proxy this bounce to initiator, this way coins will not stuck on SBT.
 
 #### Verify SBT contract example
 
 ```C
-int op::ownership_proof() asm "0x6ecd55cc PUSHINT";
+int op::ownership_proof() asm "0x0524c7ae PUSHINT";
 
 int equal_slices (slice a, slice b) asm "SDEQ";
 
@@ -98,12 +105,15 @@ slice calculate_sbt_address(slice collection_addr, cell sbt_item_code, int wc, i
 
     slice owner_addr = in_msg~load_msg_addr();
     cell payload = in_msg~load_ref();
-
+    
+    int revoked_at = in_msg~load_uint(64);
+    throw_if(403, revoked_at > 0);
+    
     int with_content = in_msg~load_uint(1);
     if (with_content != 0) {
         cell sbt_content = in_msg~load_ref();
     }
-
+    
     ;;
     ;; sbt verified, do something
     ;;

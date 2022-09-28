@@ -72,6 +72,17 @@ export class SbtItemLocal {
         return key.readAddress()
     }
 
+    async getRevokedTime(): Promise<number> {
+        let res = await this.contract.invokeGetMethod('get_revoked_time', [])
+        if (res.type !== 'success') {
+            throw new Error(`Cant invoke get_revoked_time`)
+        }
+
+        let [key] = res.result as [BN]
+
+        return key.toNumber()
+    }
+
     async getEditor(): Promise<Address | null> {
         let res = await this.contract.invokeGetMethod('get_editor', [])
         if (res.type !== 'success') {
@@ -144,7 +155,8 @@ export class SbtItemLocal {
         })
 
         contract.setC7Config({
-            myself: address
+            myself: address,
+            unixtime: 111
         })
 
         return new SbtItemLocal(contract, address)
@@ -163,7 +175,8 @@ export class SbtItemLocal {
         })
 
         contract.setC7Config({
-            myself: address
+            myself: address,
+            unixtime: 111
         })
 
         return new SbtItemLocal(contract, address)
