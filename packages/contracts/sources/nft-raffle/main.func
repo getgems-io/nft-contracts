@@ -1,0 +1,56 @@
+
+
+{-
+    [+] Receive NFT`s
+    [+] Raffle NFT`s and send NFT`s to the new owners
+    [+] Cancel and send NFT`s to the owners
+    [+] Receive extra TON`s for comission
+    [+] If we have errors we should can send NFT`s 
+-}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    throw_if(0, cs~load_uint(4) & 1);
+    init_data();
+
+    slice sender_addr = cs~load_msg_addr();
+    int op = in_msg_body~load_uint(32);
+
+    int left? = equal_slices(sender_addr, db::left_user);
+    int right? = equal_slices(sender_addr, db::right_user);
+    int super? = equal_slices(sender_addr, db::super_user);
+
+    if (op == op::ownership_assigned()) {
+        handle::receive_nft(sender_addr, msg_value, in_msg_body);
+        return ();
+    }
+    if (op == op::cancel()) {
+        throw_unless(err::wrong_addr(), left? | right? | super?);
+        handle::cancel();
+        return ();
+    }
+    
+    if (op == op::add_coins()) {
+        throw_unless(err::wrong_addr(), right? | left?);
+        int sender = 0;
+        if (left?) {
+            sender = 1;
+        }
+        if (right?) {
+            sender = 2;
+        }
+        handle::add_coins(sender, sender_addr, msg_value, in_msg_body);
+        return ();
+    }
+
+    if (op == op::send_again()) {
+        handle::send_again(msg_value);
+        return ();
+    }
+
+    if (op == op::maintain()) {
+        handle::maintain(sender_addr, in_msg_body);
+        return();
+    }
+    throw(0xffff);
+}

@@ -1,0 +1,99 @@
+() utils::send_nft(int mode, int amount, slice to, int nft_addr) impure inline_ref {
+    builder body = begin_cell()
+        .store_uint(op::transfer(), 32) ;; op
+        .store_uint(cur_lt(), 64)       ;; query id
+        .store_slice(to)                ;; new owner
+        .store_slice(to)                ;; response destination
+        .store_int(0, 1)                ;; custom payload
+        .store_coins(0)                 ;; fwd ton amount
+        .store_int(0, 1);               ;; fwd custom payload
+    builder msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_uint(2, 2) ;; addr std
+        .store_uint(0, 1) ;; anycast
+        .store_uint(0, 8) ;; wc
+        .store_uint(nft_addr, 256)
+        .store_coins(amount)
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(body.end_cell());
+    send_raw_message(msg.end_cell(), mode);
+}
+
+() utils::send_raffled_nfts(cell dict, int amount) impure inline_ref {
+    int key = -1;
+    do {
+        (key, slice data, int found) = dict.udict_get_next?(256, key);
+        if (found) {
+            if (data.preload_uint(1) == 1) {
+                utils::send_nft(0, amount, db::left_user, key);
+            } else {
+                utils::send_nft(0, amount, db::right_user, key);
+            }
+        }
+    } until (~ found);
+}
+
+() utils::send_nfts(cell dict, int amount, slice left, slice right) impure inline_ref {
+    int key = -1;
+    do {
+        (key, slice data, int found) = dict.udict_get_next?(256, key);
+        if (found) {
+            if (data.preload_uint(4) == 2) {
+                utils::send_nft(1, amount, left, key);
+            }
+            if (data.preload_uint(4) == 3) {
+                utils::send_nft(1, amount, right, key);
+            }
+        }
+    } until (~ found);
+}
+
+(cell, int, int) utils::add_nft(cell dict, int nft_addr) inline_ref {
+    int left_success = 0;
+    int right_success = 0;
+    (slice data, int found) = dict.udict_get?(256, nft_addr);
+    if (found == 0) {
+        return (dict, 0, 0);
+    }
+    if (data~load_uint(4) == 0) {
+        dict~udict_set(256, nft_addr, begin_cell().store_uint(2, 4).end_cell().begin_parse());
+        left_success = -1;
+    } else {
+        dict~udict_set(256, nft_addr, begin_cell().store_uint(3, 4).end_cell().begin_parse());
+        right_success = -1;
+    }
+    return(dict, left_success, right_success);
+}
+
+cell utils::raffle_nfts(cell raffled_nfts, cell nfts) inline_ref {
+    int key = -1;
+    do {
+        (key, slice data, int found) = nfts.udict_get_next?(256, key);
+        if (found) {
+            if (rand(2) == 0) {
+                raffled_nfts~udict_set(256, key, begin_cell().store_uint(1, 1).end_cell().begin_parse());
+            } else {
+                raffled_nfts~udict_set(256, key, begin_cell().store_uint(0, 1).end_cell().begin_parse());
+            }
+        }
+    } until (~ found)
+    return raffled_nfts;
+}
+
+
+int utils::check_conditions() inline_ref method_id {
+    init_data();
+    return ((db::right_nfts_count == db::right_nfts_received) & (db::left_nfts_count == db::left_nfts_received) &
+            (db::left_coins_got >= db::left_commission) & (db::right_coins_got >= db::right_commission));
+}
+
+() utils::send_tons(slice to, int amount, slice message, int mode) impure inline_ref {
+    var msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(to)
+        .store_coins(amount)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_uint(0, 32)
+        .store_slice(message);
+    send_raw_message(msg.end_cell(), mode);
+}

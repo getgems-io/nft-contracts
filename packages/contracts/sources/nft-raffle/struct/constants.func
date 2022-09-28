@@ -1,0 +1,21 @@
+int state::active()     asm "1 PUSHINT";
+int state::canceled()   asm "2 PUSHINT";
+int state::completed()  asm "3 PUSHINT";
+
+int min_tons_for_storage() asm "1000000 PUSHINT"; ;; 0,001 TON
+int min_tons_for_operation() asm "10000000 PUSHINT"; ;; 0,01 TON
+
+int op::transfer()              asm "0x5fcc3d14 PUSHINT";
+int op::ownership_assigned()    asm "0x05138d91 PUSHINT";
+int op::cancel()                asm "2001 PUSHINT";
+int op::add_coins()             asm "2002 PUSHINT";
+int op::maintain()              asm "2003 PUSHINT";
+int op::send_again()            asm "2004 PUSHINT";
+
+slice msg::canceled() asm "<b 124 word NFT raffle canceled| $, b> <s PUSHSLICE";
+slice msg::commission() asm "<b 124 word NFT raffle commission| $, b> <s PUSHSLICE";
+
+
+int err::state() asm "1001 PUSHINT";
+int err::wrong_addr() asm "1002 PUSHINT";
+int err::coins() asm "1003 PUSHINT";

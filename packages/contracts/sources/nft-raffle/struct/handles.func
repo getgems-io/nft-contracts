@@ -1,0 +1,87 @@
+() handle::raffle() impure inline_ref {
+    db::state = state::completed();
+    db::raffled_nfts = utils::raffle_nfts(db::raffled_nfts, db::nfts);
+    utils::send_raffled_nfts(db::raffled_nfts, db::nft_transfer_fee);
+    raw_reserve(min_tons_for_storage(), 0);
+    utils::send_tons(db::super_user, 0, msg::commission(), 130);
+    save_data();
+}
+
+
+() handle::return_nft(slice nft_addr, slice in_msg_body) impure inline_ref {
+    in_msg_body~skip_bits(64);
+    slice prev_owner = in_msg_body~load_msg_addr();
+    (_, int addr) = parse_std_addr(nft_addr);
+    utils::send_nft(64, 0, prev_owner, addr);
+}
+
+() handle::receive_nft(slice nft_addr, int msg_value, slice in_msg_body) impure inline_ref {
+    int extra = msg_value - min_tons_for_operation() - db::nft_transfer_fee;
+    if ((extra < 0 ) | (db::state != state::active())) {
+        handle::return_nft(nft_addr,in_msg_body);
+        return ();
+    }
+    (_, int addr) = parse_std_addr(nft_addr);
+    (cell nfts, int left_success, int right_success) = db::nfts.utils::add_nft(addr);
+
+    if (~ (left_success | right_success)) {
+        handle::return_nft(nft_addr,in_msg_body);
+        return ();
+    }
+    db::nfts = nfts;
+    if (left_success) {
+        db::left_nfts_received += 1;
+        db::left_coins_got += extra;
+    } 
+    if(right_success) {
+        db::right_nfts_received += 1;
+        db::right_coins_got += extra;
+    }
+    if (utils::check_conditions()) {
+        handle::raffle();
+    }
+    save_data();
+}
+
+() handle::cancel() impure inline_ref {
+    throw_if(err::state(), db::state != state::active());
+    throw_if(err::state(), utils::check_conditions());
+    db::state = state::canceled();
+    db::nfts.utils::send_nfts(db::nft_transfer_fee, db::left_user, db::right_user);
+
+    raw_reserve(min_tons_for_storage(), 0);
+
+    utils::send_tons(db::left_user, db::left_coins_got, msg::canceled(), 2);
+    utils::send_tons(db::right_user, db::right_coins_got, msg::canceled(), 2);
+    utils::send_tons(db::super_user, 0, msg::canceled(), 128 + 2);
+    save_data();
+}
+
+() handle::add_coins(int sender, slice addr, int msg_value, slice in_msg_body) impure inline_ref {
+    throw_unless(err::state(), db::state == state::active());
+    throw_if(err::coins(), msg_value < min_tons_for_operation());
+    if (sender == 1) {
+        db::left_coins_got += (msg_value - min_tons_for_operation());
+    }
+    if (sender == 2) {
+        db::right_coins_got += (msg_value - min_tons_for_operation());
+    }
+    if (utils::check_conditions()) {
+        handle::raffle();
+    }
+    save_data();
+}
+
+() handle::maintain(slice sender_addr, slice in_msg_body) impure inline_ref {
+    throw_if(err::state(), db::state == state::active());
+    throw_unless(err::wrong_addr(), equal_slices(sender_addr, db::super_user));
+    send_raw_message(in_msg_body~load_ref(), in_msg_body~load_uint(8));
+}
+
+() handle::send_again(int msg_value) impure inline_ref {
+    throw_if(err::state(), db::state != state::completed());
+    int need_coins = (db::left_nfts_count + db::right_nfts_count) * db::nft_transfer_fee;
+    throw_if(err::coins(), msg_value < need_coins);
+    int coins_for_nft = msg_value / (db::left_nfts_count + db::right_nfts_count);
+    utils::send_raffled_nfts(db::raffled_nfts, coins_for_nft);
+}

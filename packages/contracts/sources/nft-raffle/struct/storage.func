@@ -1,0 +1,90 @@
+global int      init?;
+global int      db::state;
+global int      db::right_nfts_count;
+global int      db::right_nfts_received;
+global int      db::left_nfts_count;
+global int      db::left_nfts_received;
+
+global slice    db::left_user; 
+global slice    db::right_user;
+global slice    db::super_user;
+
+global int      db::left_commission;
+global int      db::right_commission;
+global int      db::left_coins_got;
+global int      db::right_coins_got;
+global int      db::nft_transfer_fee;
+
+global cell     db::nfts;
+global cell     db::raffled_nfts;
+
+
+
+() init_data() impure inline_ref {
+    ifnot(null?(init?)) {
+        return ();
+    }
+    slice ds = get_data().begin_parse();
+
+    slice state_slice = ds~load_ref().begin_parse();
+    db::state                   = state_slice~load_uint(2);
+    db::right_nfts_count        = state_slice~load_uint(4);
+    db::right_nfts_received     = state_slice~load_uint(4);
+    db::left_nfts_count         = state_slice~load_uint(4);
+    db::left_nfts_received      = state_slice~load_uint(4);
+
+    slice addr_slice = ds~load_ref().begin_parse();
+    db::left_user   = addr_slice~load_msg_addr();
+    db::right_user  = addr_slice~load_msg_addr();
+    db::super_user  = addr_slice~load_msg_addr();
+
+    slice commission_slice = ds~load_ref().begin_parse();
+    db::left_commission         = commission_slice~load_coins();
+    db::right_commission        = commission_slice~load_coins();
+    db::left_coins_got          = commission_slice~load_coins();
+    db::right_coins_got         = commission_slice~load_coins();
+    db::nft_transfer_fee        = commission_slice~load_coins();
+
+    slice dict_slice = ds~load_ref().begin_parse();  
+    db::nfts = dict_slice~load_dict();
+    db::raffled_nfts = dict_slice~load_dict();
+    init? = true;
+}
+
+() save_data() impure inline_ref {
+    set_data(
+        begin_cell()
+        .store_ref( ;; state slice
+            begin_cell()
+            .store_uint(db::state, 2)
+            .store_uint(db::right_nfts_count, 4)
+            .store_uint(db::right_nfts_received, 4)
+            .store_uint(db::left_nfts_count, 4)
+            .store_uint(db::left_nfts_received, 4)
+            .end_cell()
+        )
+        .store_ref( ;; addr slice
+            begin_cell()
+            .store_slice(db::left_user)
+            .store_slice(db::right_user)
+            .store_slice(db::super_user)
+            .end_cell()
+        )
+        .store_ref( ;; commission slice
+            begin_cell()
+            .store_coins(db::left_commission)
+            .store_coins(db::right_commission)
+            .store_coins(db::left_coins_got)
+            .store_coins(db::right_coins_got)
+            .store_coins(db::nft_transfer_fee)
+            .end_cell()
+        )
+        .store_ref( ;; dict slice
+            begin_cell()
+            .store_dict(db::nfts)
+            .store_dict(db::raffled_nfts)
+            .end_cell()
+        )
+        .end_cell()
+    );
+}

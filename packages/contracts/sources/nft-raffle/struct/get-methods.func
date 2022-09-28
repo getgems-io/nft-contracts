@@ -1,0 +1,7 @@
+_ raffle_state() method_id {
+    init_data();
+    return (db::state, db::right_nfts_count, db::right_nfts_received, db::left_nfts_count,
+    db::left_nfts_received, db::left_user, db::right_user, db::super_user, db::left_commission,
+    db::right_commission, db::left_coins_got, db::right_coins_got, db::nft_transfer_fee,
+    db::nfts, db::raffled_nfts);
+}
