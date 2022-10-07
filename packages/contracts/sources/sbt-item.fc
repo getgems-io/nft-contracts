@@ -87,7 +87,7 @@ global int storage::revoked_at;
         storage::owner_address     = in_msg_body~load_msg_addr();
         storage::content           = in_msg_body~load_ref();
         storage::authority_address = in_msg_body~load_msg_addr();
-        storage::revoked_at        = in_msg_body~load_uint(64);
+        storage::revoked_at        = 0;
 
         store_data();
         return ();
