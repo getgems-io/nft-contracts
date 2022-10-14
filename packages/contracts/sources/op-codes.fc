@@ -14,7 +14,6 @@ int op::editorship_assigned() asm "0x511a4463 PUSHINT";
 ;; SBT
 int op::request_owner() asm "0xd0c3bfea PUSHINT";
 int op::owner_info() asm "0x0dd607e3 PUSHINT";
-int op::owner_info_bounced() asm "0x7ca7b0fe PUSHINT";
 
 int op::prove_ownership() asm "0x04ded148 PUSHINT";
 int op::ownership_proof() asm "0x0524c7ae PUSHINT";
@@ -22,3 +21,4 @@ int op::ownership_proof_bounced() asm "0xc18e86d2 PUSHINT";
 
 int op::destroy() asm "0x1f04537a PUSHINT";
 int op::revoke() asm "0x6f89f5e3 PUSHINT";
+int op::take_excess() asm "0xd136d3b3 PUSHINT";
