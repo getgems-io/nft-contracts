@@ -1,0 +1,398 @@
+;; NFT offer contract
+
+slice msg::cancel() asm "<b 124 word cancel| $, b> <s PUSHSLICE";
+slice msg::profit() asm "<b 124 word Profit| $, b> <s PUSHSLICE";
+slice msg::royalties() asm "<b 124 word Offer royalies| $, b> <s PUSHSLICE";
+slice msg::fee() asm "<b 124 word Offer fee| $, b> <s PUSHSLICE";
+slice msg::cancel_fee() asm "<b 124 word Offer cancel fee| $, b> <s PUSHSLICE";
+
+int division(int a, int b) { ;; division with factor
+    return muldiv(a, 1000000000 {- 1e9 -}, b);
+}
+
+int multiply(int a, int b) { ;; multiply with factor
+    return muldiv (a, b, 1000000000 {- 1e9 -});
+}
+
+int get_percent(int a, int percent, int factor) {
+    if (factor == 0) {
+        return 0;
+    } else {
+        return division(multiply(a, percent), factor);
+    }
+}
+
+_ load_data() inline {
+    var ds = get_data().begin_parse();
+    return (
+            ds~load_uint(1),    ;; is_complete 1
+            ds~load_uint(32),   ;; created_at 32
+            ds~load_uint(32),   ;; finish_at 32
+            ds~load_msg_addr(), ;; marketplace_address  267
+            ds~load_msg_addr(), ;; nft_address 267
+            ds~load_msg_addr(), ;; offer_owner_address 267
+            ds~load_coins(),    ;; full_price 127
+            ds~load_ref(),      ;; fees_cell
+            ds~load_uint(1)     ;; can_deploy
+    );
+}
+
+_ load_fees(cell fees_cell) inline {
+    var ds = fees_cell.begin_parse();
+    return (
+            ds~load_msg_addr(), ;; marketplace_fee_address
+            ds~load_uint(32),    ;; marketplace_factor,
+            ds~load_uint(32),    ;; marketplace_base,
+            ds~load_msg_addr(), ;; royalty_address
+            ds~load_uint(32),    ;; royalty_factor,
+            ds~load_uint(32)    ;; royalty_base,
+    );
+}
+
+() save_data(int is_complete, int created_at, int finish_at, slice marketplace_address, slice nft_address, slice offer_owner_address, int full_price, cell fees_cell) impure inline {
+    set_data(
+            begin_cell()
+                    .store_uint(is_complete, 1)
+                    .store_uint(created_at, 32)
+                    .store_uint(finish_at, 32)
+                    .store_slice(marketplace_address)
+                    .store_slice(nft_address)
+                    .store_slice(offer_owner_address)
+                    .store_coins(full_price)
+                    .store_ref(fees_cell)
+                    .store_uint(0, 1) ;; can_deploy
+                    .end_cell()
+    );
+}
+
+() send_money(slice address, int amount, slice msg) impure inline {
+    var msg = begin_cell()
+            .store_uint(0x10, 6) ;; nobounce
+            .store_slice(address)
+            .store_coins(amount)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_uint(0, 32)
+            .store_slice(msg)
+            .end_cell();
+
+    send_raw_message(msg, 1);
+}
+
+() swap_nft(var args) impure {
+
+    (
+            int created_at,
+            int finish_at,
+            slice marketplace_address,
+            slice nft_address,
+            slice offer_owner_address,
+            int full_price,
+            cell fees_cell,
+
+            int my_balance,
+            int msg_value,
+            slice nft_owner_address,
+            int query_id
+    ) = args;
+
+    var (
+            marketplace_fee_address,
+            marketplace_factor, marketplace_base,
+            royalty_address,
+            royalty_factor, royalty_base
+    ) = load_fees(fees_cell);
+
+    int royalty_amount = get_percent(full_price, royalty_factor, royalty_base);
+    int marketplace_fee = get_percent(full_price, marketplace_factor, marketplace_base);
+
+    ;; nft owner got offer value
+    send_money(nft_owner_address,full_price - marketplace_fee - royalty_amount, msg::profit());
+
+    ;; Royalty message
+    if ((royalty_amount > 0) & (royalty_address.slice_bits() > 2)) {
+        send_money(royalty_address,royalty_amount, msg::royalties());
+    }
+
+    ;; Marketplace fee message
+    if (marketplace_fee > 0) {
+        send_money(marketplace_fee_address,marketplace_fee, msg::fee());
+    }
+
+    builder nft_transfer = begin_cell()
+            .store_uint(op::transfer(), 32)
+            .store_uint(query_id, 64)
+            .store_slice(offer_owner_address) ;; new_owner_address
+            .store_slice(nft_owner_address) ;; response_address
+            .store_int(0, 1) ;; empty custom_payload
+            .store_coins(10000000) ;; forward amount to new_owner_address 0.01 TON
+            .store_int(0, 1); ;; no forward_payload
+    var nft_msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_slice(nft_address)
+            .store_coins(0)
+            .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_ref(nft_transfer.end_cell());
+
+    raw_reserve(1000000, 0);
+    send_raw_message(nft_msg.end_cell(), 128);
+
+    ;; Set sale as complete
+    save_data(
+            1,
+            created_at, finish_at,
+            marketplace_address,
+            nft_address,
+            offer_owner_address,
+            full_price,
+            fees_cell
+    );
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+
+    if (flags & 1) {  ;; ignore all bounced messages
+        return ();
+    }
+
+    slice sender_address = cs~load_msg_addr();
+
+    var (
+            is_complete,
+            created_at,
+            finish_at,
+            marketplace_address,
+            nft_address,
+            offer_owner_address,
+            full_price,
+            fees_cell,
+            can_deploy
+    ) = load_data();
+
+    if (can_deploy == 1) {
+        save_data(
+                is_complete,
+                created_at, finish_at,
+                marketplace_address,
+                nft_address,
+                offer_owner_address,
+                msg_value,
+                fees_cell
+        );
+        return ();
+    }
+
+    int op = -1;
+
+    if (in_msg_body.slice_data_empty?() == false) {
+        op = in_msg_body~load_uint(32);
+        if ((op == 0) & equal_slices(in_msg_body, msg::cancel())) {
+            op = 3;
+        }
+    }
+
+    if ((op == 555) & (is_complete == 1) & equal_slices(sender_address, marketplace_address)) {
+        ;; way to fix unexpected troubles with contract
+        var msg = in_msg_body~load_ref().begin_parse();
+        var mode = msg~load_uint(8);
+        send_raw_message(msg~load_ref(), mode);
+        return ();
+    }
+
+    ;; received nft
+    if (op == op::ownership_assigned()) {
+        var query_id = in_msg_body~load_uint(64);
+        slice prev_owner = in_msg_body~load_msg_addr();
+
+        if (sender_address.equal_slices(nft_address) & (is_complete == 0) & (msg_value >= 1000000000)) {
+            swap_nft(
+                    created_at, finish_at,
+                    marketplace_address,
+                    nft_address,
+                    offer_owner_address,
+                    full_price,
+                    fees_cell,
+                    my_balance,
+                    msg_value,
+                    prev_owner,
+                    query_id
+            );
+        } else {
+            ;; should return nft back
+            builder nft_transfer = begin_cell()
+                    .store_uint(op::transfer(), 32)
+                    .store_uint(query_id, 64) ;; query_id
+                    .store_slice(prev_owner) ;; new_owner_address
+                    .store_slice(prev_owner) ;; response_address
+                    .store_int(0, 1) ;; empty custom_payload
+                    .store_coins(0) ;; forward amount to new_owner_address 0.00 TON
+                    .store_int(0, 1); ;; empty forward_payload
+            var nft_msg = begin_cell()
+                    .store_uint(0x18, 6)
+                    .store_slice(sender_address)
+                    .store_coins(0)
+                    .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .store_ref(nft_transfer.end_cell());
+
+
+            send_raw_message(nft_msg.end_cell(), 64);
+        }
+        return ();
+    }
+
+    ;; Throw if offer is complete
+    throw_if(404, is_complete == 1);
+
+
+    if ((op == 0) & equal_slices(sender_address, offer_owner_address)) {
+        ;; add value to offer
+        int new_full_price = msg_value + full_price;
+        save_data(
+                is_complete,
+                created_at, finish_at,
+                marketplace_address,
+                nft_address,
+                offer_owner_address,
+                new_full_price,
+                fees_cell
+        );
+        return ();
+    }
+
+    if (op == 3) { ;; cancel offer
+        throw_unless(458, equal_slices(sender_address, offer_owner_address) | equal_slices(sender_address, marketplace_address));
+
+        raw_reserve(1000000, 0); ;; 0.001 TON
+
+        if (equal_slices(sender_address, marketplace_address)) {
+            var coins = in_msg_body~load_coins();
+            if (coins > 500000000) { ;; MAX 0.5 TON can stole
+                coins = 500000000;
+            }
+            send_money(marketplace_address, coins, msg::cancel_fee()); ;; fee for mp can send message for cancel
+
+            var msg = begin_cell()
+                    .store_uint(0x10, 6) ;; nobounce
+                    .store_slice(offer_owner_address)
+                    .store_coins(0)
+                    .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .store_ref(in_msg_body~load_ref())
+                    .end_cell();
+
+            send_raw_message(msg, 128);
+        } else {
+            var msg = begin_cell()
+                    .store_uint(0x10, 6) ;; nobounce
+                    .store_slice(offer_owner_address)
+                    .store_coins(0)
+                    .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                    .end_cell();
+
+            send_raw_message(msg, 128);
+        }
+
+
+        save_data(
+                1,
+                created_at, finish_at,
+                marketplace_address,
+                nft_address,
+                offer_owner_address,
+                full_price,
+                fees_cell
+        );
+        return ();
+    }
+
+    throw(0xffff);
+}
+
+() recv_external(slice in_msg) impure {
+    var (
+            is_complete,
+            created_at,
+            finish_at,
+            marketplace_address,
+            nft_address,
+            offer_owner_address,
+            full_price,
+            fees_cell,
+            can_deploy
+    ) = load_data();
+
+    throw_if(404, is_complete == 1);
+
+    if (now() >= finish_at) {
+        var op = in_msg~load_uint(32);
+        throw_if(4003, op != 0);
+        throw_if(4004, slice_refs(in_msg) != 0);
+        throw_if(4005, slice_bits(in_msg) > 500);
+        accept_message();
+        raw_reserve(1000000, 0); ;; 0.001 TON
+
+        var msg = begin_cell()
+                .store_uint(0x10, 6) ;; nobounce
+                .store_slice(offer_owner_address)
+                .store_coins(0)
+                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                .store_uint(0,32)
+                .store_slice(in_msg)
+                .end_cell();
+
+        send_raw_message(msg, 128);
+
+
+        save_data(
+                1,
+                created_at, finish_at,
+                marketplace_address,
+                nft_address,
+                offer_owner_address,
+                full_price,
+                fees_cell
+        );
+        return ();
+    }
+
+    throw(0xfffe);
+}
+
+(int, int, int, int, slice, slice, slice, int, slice, int, int, slice, int, int, int) get_offer_data() method_id {
+    var (
+            is_complete,
+            created_at, finish_at,
+            marketplace_address,
+            nft_address,
+            offer_owner_address,
+            full_price,
+            fees_cell,
+            can_deploy
+    ) = load_data();
+
+    var (
+            marketplace_fee_address,
+            marketplace_factor, marketplace_base,
+            royalty_address,
+            royalty_factor, royalty_base
+    ) = load_fees(fees_cell);
+
+    int royalty_amount = get_percent(full_price, royalty_factor, royalty_base);
+    int marketplace_fee = get_percent(full_price, marketplace_factor, marketplace_base);
+    int profit_price = full_price - royalty_amount - marketplace_fee;
+
+    return (
+            0x4f46464552,    ;; offer ("OFFER")
+            is_complete == 1,
+            created_at, finish_at,
+            marketplace_address,
+            nft_address,
+            offer_owner_address,
+            full_price,
+            marketplace_fee_address,
+            marketplace_factor, marketplace_base,
+            royalty_address,
+            royalty_factor, royalty_base,
+            profit_price
+    );
+}
