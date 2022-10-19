@@ -58,7 +58,7 @@ After that SBT will send transfer to `dest` with scheme:
 owner_info#0dd607e3 query_id:uint64 item_id:uint256 initiator:MsgAddress owner:MsgAddress 
 data:^Cell revoked_at:uint64 content:(Maybe ^Cell)
 ```
-If something goes wrong and target contract not accepts message, and it will be bounced back to SBT, SBT will proxy this bounce to initiator, this way coins will not stuck on SBT.
+If something goes wrong and target contract not accepts message, and it will be bounced back to SBT, amount will stay on SBT.
 
 #### Verify SBT contract example
 

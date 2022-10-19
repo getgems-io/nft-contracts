@@ -73,7 +73,7 @@ export const OperationCodes = {
     OwnershipProofBounced: 0xc18e86d2,
     RequestOwnerInfo: 0xd0c3bfea,
     OwnerInfo: 0x0dd607e3,
-    OwnerInfoBounced: 0x7ca7b0fe,
+    TakeExcess: 0xd136d3b3,
     Destroy: 0x1f04537a,
     Revoke: 0x6f89f5e3
 }
@@ -100,6 +100,12 @@ export const Queries = {
     revoke: (params: { queryId?: number}) => {
         let msgBody = new Cell()
         msgBody.bits.writeUint(OperationCodes.Revoke, 32)
+        msgBody.bits.writeUint(params.queryId || 0, 64)
+        return msgBody
+    },
+    takeExcess: (params: { queryId?: number}) => {
+        let msgBody = new Cell()
+        msgBody.bits.writeUint(OperationCodes.TakeExcess, 32)
         msgBody.bits.writeUint(params.queryId || 0, 64)
         return msgBody
     },

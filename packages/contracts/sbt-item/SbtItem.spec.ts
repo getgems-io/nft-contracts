@@ -1,4 +1,4 @@
-import {Cell, CellMessage, CommonMessageInfo, ExternalMessage, InternalMessage, toNano} from "ton";
+import {Cell, CellMessage, CommonMessageInfo, ExternalMessage, fromNano, InternalMessage, toNano} from "ton";
 import {randomAddress} from "../../utils/randomAddress";
 import {SbtItemData, SbtSingleData, OperationCodes, Queries} from "./SbtItem.data";
 import {SbtItemLocal} from "./SbtItemLocal";
@@ -399,66 +399,9 @@ describe('sbt item smc', () => {
 
         let op = response.readUintNumber(32)
         let queryId = response.readUintNumber(64)
-        let index = response.readUintNumber(256)
-        let owner = response.readAddress() as Address
-        let data = response.readRef()
-        let revokedAt = response.readUintNumber(64)
-        response.readBit()
-
 
         expect(op).toEqual(OperationCodes.OwnershipProofBounced)
         expect(queryId).toEqual(0)
-        expect(index).toEqual(777)
-        expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
-        expect(data.readUint(16).toNumber()).toEqual(888)
-        expect(revokedAt).toEqual(0)
-    })
-
-    it('should prove proof bounce to initiator', async () => {
-        let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
-
-        let dataCell = new Cell()
-        dataCell.bits.writeUint(888,16)
-
-        let initer = randomAddress()
-
-        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
-            bounced: true,
-            to: sbt.address,
-            from: randomAddress(),
-            value: toNano(1),
-            bounce: false,
-            body: new CommonMessageInfo({
-                body: new CellMessage(Queries.ownerInfo({
-                    id: 777,
-                    initiator: initer,
-                    owner: defaultConfig.ownerAddress,
-                    data: dataCell,
-                }, true))
-            })
-        }))
-
-        expect(res.exit_code).toEqual(0)
-
-        let [responseMessage] = res.actionList as [SendMsgAction]
-        let response = responseMessage.message.body.beginParse()
-
-        let op = response.readUintNumber(32)
-        let queryId = response.readUintNumber(64)
-        let index = response.readUintNumber(256)
-        let initiator = response.readAddress() as Address
-        let owner = response.readAddress() as Address
-        let data = response.readRef()
-        let revokedAt = response.readUintNumber(64)
-        response.readBit()
-
-        expect(op).toEqual(OperationCodes.OwnerInfoBounced)
-        expect(queryId).toEqual(0)
-        expect(index).toEqual(777)
-        expect(initiator.toFriendly()).toEqual(initer.toFriendly())
-        expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
-        expect(data.readUint(16).toNumber()).toEqual(888)
-        expect(revokedAt).toEqual(0)
     })
 
     it('should not verify ownership non bounced', async () => {
@@ -518,6 +461,45 @@ describe('sbt item smc', () => {
         }))
 
         expect(res.exit_code).toEqual(401)
+    })
+
+    it('should not take excess', async () => {
+        let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.authorityAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.takeExcess({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(401)
+    })
+
+    it('should take excess', async () => {
+        let sbt = await SbtItemLocal.createFromConfig(defaultConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.ownerAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.takeExcess({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(0)
+
+        let [reserve, responseMessage] = res.actionList as [ReserveCurrencyAction,SendMsgAction]
+        expect(reserve.mode).toEqual(0)
+        expect(fromNano(reserve.currency.coins)).toEqual("0.05")
+
+        let response = responseMessage.message.body.beginParse()
+        let op = response.readUintNumber(32)
+        expect(op).toEqual(OperationCodes.excesses)
+        expect(responseMessage.mode).toEqual(128)
     })
 })
 
@@ -858,65 +840,9 @@ describe('single sbt', () => {
 
         let op = response.readUintNumber(32)
         let queryId = response.readUintNumber(64)
-        let index = response.readUintNumber(256)
-        let owner = response.readAddress() as Address
-        let data = response.readRef()
-        let revokedAt = response.readUintNumber(64)
-        response.readBit()
 
         expect(op).toEqual(OperationCodes.OwnershipProofBounced)
         expect(queryId).toEqual(0)
-        expect(index).toEqual(777)
-        expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
-        expect(data.readUint(16).toNumber()).toEqual(888)
-        expect(revokedAt).toEqual(0)
-    })
-
-    it('should prove proof bounce to initiator', async () => {
-        let sbt = await SbtItemLocal.createSingle(singleConfig)
-
-        let dataCell = new Cell()
-        dataCell.bits.writeUint(888,16)
-
-        let initer = randomAddress()
-
-        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
-            bounced: true,
-            to: sbt.address,
-            from: randomAddress(),
-            value: toNano(1),
-            bounce: false,
-            body: new CommonMessageInfo({
-                body: new CellMessage(Queries.ownerInfo({
-                    id: 777,
-                    initiator: initer,
-                    owner: singleConfig.ownerAddress,
-                    data: dataCell,
-                }, true))
-            })
-        }))
-
-        expect(res.exit_code).toEqual(0)
-
-        let [responseMessage] = res.actionList as [SendMsgAction]
-        let response = responseMessage.message.body.beginParse()
-
-        let op = response.readUintNumber(32)
-        let queryId = response.readUintNumber(64)
-        let index = response.readUintNumber(256)
-        let initiator = response.readAddress() as Address
-        let owner = response.readAddress() as Address
-        let data = response.readRef()
-        let revokedAt = response.readUintNumber(64)
-        response.readBit()
-
-        expect(op).toEqual(OperationCodes.OwnerInfoBounced)
-        expect(queryId).toEqual(0)
-        expect(index).toEqual(777)
-        expect(initiator.toFriendly()).toEqual(initer.toFriendly())
-        expect(owner.toFriendly()).toEqual(defaultConfig.ownerAddress.toFriendly())
-        expect(data.readUint(16).toNumber()).toEqual(888)
-        expect(revokedAt).toEqual(0)
     })
 
     it('should not pass prove ownership non bounced', async () => {
@@ -1005,5 +931,44 @@ describe('single sbt', () => {
         }))
 
         expect(res.exit_code).toEqual(401)
+    })
+
+    it('should not take excess', async () => {
+        let sbt = await SbtItemLocal.createSingle(singleConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.authorityAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.takeExcess({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(401)
+    })
+
+    it('should take excess', async () => {
+        let sbt = await SbtItemLocal.createSingle(singleConfig)
+        let res = await sbt.contract.sendInternalMessage(new InternalMessage({
+            to: sbt.address,
+            from: defaultConfig.ownerAddress,
+            value: toNano(1),
+            bounce: false,
+            body: new CommonMessageInfo({
+                body: new CellMessage(Queries.takeExcess({}))
+            })
+        }))
+
+        expect(res.exit_code).toEqual(0)
+
+        let [reserve, responseMessage] = res.actionList as [ReserveCurrencyAction,SendMsgAction]
+        expect(reserve.mode).toEqual(0)
+        expect(fromNano(reserve.currency.coins)).toEqual("0.05")
+
+        let response = responseMessage.message.body.beginParse()
+        let op = response.readUintNumber(32)
+        expect(op).toEqual(OperationCodes.excesses)
+        expect(responseMessage.mode).toEqual(128)
     })
 })

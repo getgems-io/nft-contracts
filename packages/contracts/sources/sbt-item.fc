@@ -98,23 +98,11 @@ global int storage::revoked_at;
     if (flags & 1) { ;; route all prove_ownership bounced messages to owner
         ;; first op was 0xffffffff, because of bounced, now we need to read real one
         op = in_msg_body~load_uint(32);
-        int query_id = in_msg_body~load_uint(64);
 
         if (op == op::ownership_proof()) {
-            var msg = begin_cell().store_slice(in_msg_body);
-
+            int query_id = in_msg_body~load_uint(64);
             ;; mode 64 = carry all the remaining value of the inbound message
-            send_msg(flag::regular(), storage::owner_address, 0, op::ownership_proof_bounced(), query_id, msg, 64);
-        }
-
-        if (op == op::owner_info()) {
-            int id = in_msg_body~load_uint(256);
-            slice initiator = in_msg_body~load_msg_addr();
-
-            var msg = begin_cell().store_uint(id, 256).store_slice(initiator).store_slice(in_msg_body);
-
-            ;; mode 64 = carry all the remaining value of the inbound message
-            send_msg(flag::regular(), initiator, 0, op::owner_info_bounced(), query_id, msg, 64);
+            send_msg(flag::regular(), storage::owner_address, 0, op::ownership_proof_bounced(), query_id, null(), 64);
         }
         return ();
     }
@@ -187,6 +175,15 @@ global int storage::revoked_at;
 
         storage::revoked_at = now();
         store_data();
+        return ();
+    }
+    if (op == op::take_excess()) {
+        throw_unless(401, equal_slices(storage::owner_address, sender_address));
+
+        ;; reserve amount for storage
+        raw_reserve(min_tons_for_storage(), 0);
+
+        send_msg(flag::regular(), sender_address, 0, op::excesses(), query_id, null(), 128);
         return ();
     }
     if (op == op::transfer()) {
