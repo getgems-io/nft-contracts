@@ -1,0 +1,329 @@
+;; NFT sale smart contract v3
+
+int min_gas_amount() asm "1000000000 PUSHINT"; ;; 1 TON
+
+_ load_data() inline {
+    var ds = get_data().begin_parse();
+    return (
+        ds~load_uint(1),    ;; is_complete
+        ds~load_uint(32),   ;; created_at
+        ds~load_msg_addr(), ;; marketplace_address
+        ds~load_msg_addr(), ;; nft_address
+        ds~load_msg_addr(), ;; nft_owner_address
+        ds~load_coins(),    ;; full_price
+        ds~load_ref(),      ;; fees_cell
+        ds~load_uint(1)     ;; can_deploy_by_external
+    );
+}
+
+_ load_fees(cell fees_cell) inline {
+    var ds = fees_cell.begin_parse();
+    return (
+        ds~load_msg_addr(), ;; marketplace_fee_address
+        ds~load_coins(),    ;; marketplace_fee,
+        ds~load_msg_addr(), ;; royalty_address
+        ds~load_coins()     ;; royalty_amount
+    );
+}
+
+() save_data(int is_complete, int created_at, slice marketplace_address, slice nft_address, slice nft_owner_address, int full_price, cell fees_cell) impure inline {
+    set_data(
+        begin_cell()
+            .store_uint(is_complete, 1)
+            .store_uint(created_at, 32)
+            .store_slice(marketplace_address)
+            .store_slice(nft_address)
+            .store_slice(nft_owner_address)
+            .store_coins(full_price)
+            .store_ref(fees_cell)
+            .store_uint(0, 1) ;; can_deploy_by_external
+            .end_cell()
+    );
+}
+
+() send_money(slice address, int amount) impure inline {
+    var msg = begin_cell()
+        .store_uint(0x10, 6) ;; nobounce
+        .store_slice(address)
+        .store_coins(amount)
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .end_cell();
+
+    send_raw_message(msg, 1);
+}
+
+() buy(var args) impure {
+
+    (
+        int created_at,
+        slice marketplace_address,
+        slice nft_address,
+        slice nft_owner_address,
+        int full_price,
+        cell fees_cell,
+
+        int my_balance,
+        int msg_value,
+        slice sender_address,
+        int query_id
+    ) = args;
+
+    throw_unless(450, msg_value >= full_price + min_gas_amount());
+
+    var (
+        marketplace_fee_address,
+        marketplace_fee,
+        royalty_address,
+        royalty_amount
+    ) = load_fees(fees_cell);
+
+    ;; Owner message
+    send_money(
+    nft_owner_address,
+    full_price - marketplace_fee - royalty_amount + (my_balance - msg_value)
+    );
+
+    ;; Royalty message
+    if ((royalty_amount > 0) & (royalty_address.slice_bits() > 2)) {
+        send_money(
+        royalty_address,
+        royalty_amount
+        );
+    }
+
+    ;; Marketplace fee message
+    send_money(
+        marketplace_fee_address,
+        marketplace_fee
+    );
+
+    builder nft_transfer = begin_cell()
+            .store_uint(op::transfer(), 32)
+            .store_uint(query_id, 64)
+            .store_slice(sender_address) ;; new_owner_address
+            .store_slice(sender_address) ;; response_address
+            .store_int(0, 1) ;; empty custom_payload
+            .store_coins(30000000) ;; forward amount to new_owner_address 0.03 TON
+            .store_int(0, 1); ;; empty forward_payload
+    var nft_msg = begin_cell()
+       .store_uint(0x18, 6)
+       .store_slice(nft_address)
+       .store_coins(0)
+       .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+       .store_ref(nft_transfer.end_cell());
+
+
+    send_raw_message(nft_msg.end_cell(), 128);
+
+    ;; Set sale as complete
+    save_data(
+        1,
+        created_at,
+        marketplace_address,
+        nft_address,
+        nft_owner_address,
+        full_price,
+        fees_cell
+    );
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+
+    if (flags & 1) {  ;; ignore all bounced messages
+        return ();
+    }
+
+    slice sender_address = cs~load_msg_addr();
+
+    var (
+        is_complete,
+        created_at,
+        marketplace_address,
+        nft_address,
+        nft_owner_address,
+        full_price,
+        fees_cell,
+        can_deploy_by_external
+    ) = load_data();
+
+    int op = 0;
+    int query_id = 0;
+
+    if (in_msg_body.slice_empty?() == false) {
+        op = in_msg_body~load_uint(32);
+        query_id = in_msg_body~load_uint(64);
+    }
+
+    ;; alow cancel complete contract for fix bug with duplicate transfet nft to sale
+    if (op == 3) { ;; cancel sale
+        throw_unless(457, msg_value >= min_gas_amount());
+        throw_unless(458, equal_slices(sender_address, nft_owner_address) | equal_slices(sender_address, marketplace_address));
+
+        var msg = begin_cell()
+                .store_uint(0x10, 6) ;; nobounce
+                .store_slice(nft_address)
+                .store_coins(0)
+                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                .store_uint(op::transfer(), 32)
+                .store_uint(query_id, 64)
+                .store_slice(nft_owner_address) ;; new_owner_address
+                .store_slice(nft_owner_address) ;; response_address;
+                .store_int(0, 1) ;; empty custom_payload
+                .store_coins(0) ;; forward amount to new_owner_address
+                .store_int(0, 1); ;; empty forward_payload
+
+        send_raw_message(msg.end_cell(), 64);
+
+        save_data(
+                1,
+                created_at,
+                marketplace_address,
+                nft_address,
+                nft_owner_address,
+                full_price,
+                fees_cell
+        );
+        return ();
+    }
+
+    if ((op == 555) & (is_complete == 1) & equal_slices(sender_address, marketplace_address)) {
+        ;; way to fix unexpected troubles with sale contract
+        ;; for example if some one transfer nft to this contract
+        var msg = in_msg_body~load_ref().begin_parse();
+        var mode = msg~load_uint(8);
+        send_raw_message(msg~load_ref(), mode);
+        return ();
+    }
+
+    ;; Throw if sale is complete
+    throw_if(404, is_complete == 1);
+
+    var is_initialized = nft_owner_address.slice_bits() > 2; ;; not initialized if null address
+
+    if (~ is_initialized) {
+
+        if (equal_slices(sender_address, marketplace_address)) {
+            return (); ;; just accept coins on deploy
+        }
+
+        throw_unless(500, equal_slices(sender_address, nft_address));
+        throw_unless(501, op == op::ownership_assigned());
+        slice prev_owner_address = in_msg_body~load_msg_addr();
+
+        save_data(
+            is_complete,
+            created_at,
+            marketplace_address,
+            nft_address,
+            prev_owner_address,
+            full_price,
+            fees_cell
+        );
+
+        return ();
+    }
+
+    if (op == 0) {
+        buy(
+            created_at,
+            marketplace_address,
+            nft_address,
+            nft_owner_address,
+            full_price,
+            fees_cell,
+
+            my_balance,
+            msg_value,
+            sender_address,
+            0
+        );
+        return ();
+    }
+
+    if (op == 1) { ;; just accept coins
+        return ();
+    }
+
+    if (op == 2) { ;; buy
+        buy(
+            created_at,
+            marketplace_address,
+            nft_address,
+            nft_owner_address,
+            full_price,
+            fees_cell,
+
+            my_balance,
+            msg_value,
+            sender_address,
+            query_id
+        );
+        return ();
+    }
+
+    throw(0xffff);
+}
+
+() recv_external(slice in_msg) impure {
+    var (
+            is_complete,
+            created_at,
+            marketplace_address,
+            nft_address,
+            nft_owner_address,
+            full_price,
+            fees_cell,
+            can_deploy_by_external
+    ) = load_data();
+
+    if (can_deploy_by_external == 1) {
+        accept_message();
+        save_data(
+                is_complete,
+                created_at,
+                marketplace_address,
+                nft_address,
+                nft_owner_address,
+                full_price,
+                fees_cell
+        );
+        return ();
+    }
+    throw(0xfffe);
+}
+
+(int, int, int, slice, slice, slice, int, slice, int, slice, int) get_sale_data() method_id {
+    var (
+        is_complete,
+        created_at,
+        marketplace_address,
+        nft_address,
+        nft_owner_address,
+        full_price,
+        fees_cell,
+        can_deploy_by_external
+    ) = load_data();
+
+    var (
+        marketplace_fee_address,
+        marketplace_fee,
+        royalty_address,
+        royalty_amount
+    ) = load_fees(fees_cell);
+
+    return (
+        0x46495850,    ;; fix price sale ("FIXP")
+        is_complete == 1,
+        created_at,
+        marketplace_address,
+        nft_address,
+        nft_owner_address,
+        full_price,
+        marketplace_fee_address,
+        marketplace_fee,
+        royalty_address,
+        royalty_amount
+    );
+}
