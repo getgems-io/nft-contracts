@@ -63,8 +63,7 @@ global int storage::revoked_at;
             .store_slice(to_address)
             .store_coins(amount)
             .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-            .store_ref(body.end_cell())
-            .store_uint(query_id, 64);
+            .store_ref(body.end_cell());
 
     send_raw_message(msg.end_cell(), send_mode);
 }
