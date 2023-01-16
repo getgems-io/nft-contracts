@@ -1,3 +1,10 @@
+;; Constant slices heavily used as dictionary values
+;; Inlined to avoid cell creation fee.
+slice const_1bit_0() asm "b{0} PUSHSLICE";
+slice const_1bit_1() asm "b{1} PUSHSLICE";
+slice const_4bit_2() asm "x{2} PUSHSLICE";
+slice const_4bit_3() asm "x{3} PUSHSLICE";
+
 () utils::send_nft(int mode, int amount, slice to, int nft_addr) impure inline_ref {
     builder body = begin_cell()
         .store_uint(op::transfer(), 32) ;; op
@@ -56,10 +63,10 @@
         return (dict, 0, 0);
     }
     if (data~load_uint(4) == 0) {
-        dict~udict_set(256, nft_addr, begin_cell().store_uint(2, 4).end_cell().begin_parse());
+        dict~udict_set(256, nft_addr, const_4bit_2());
         left_success = -1;
     } else {
-        dict~udict_set(256, nft_addr, begin_cell().store_uint(3, 4).end_cell().begin_parse());
+        dict~udict_set(256, nft_addr, const_4bit_3());
         right_success = -1;
     }
     return(dict, left_success, right_success);
@@ -71,9 +78,9 @@ cell utils::raffle_nfts(cell raffled_nfts, cell nfts) inline_ref {
         (key, slice data, int found) = nfts.udict_get_next?(256, key);
         if (found) {
             if (rand(2) == 0) {
-                raffled_nfts~udict_set(256, key, begin_cell().store_uint(1, 1).end_cell().begin_parse());
+                raffled_nfts~udict_set(256, key, const_1bit_1());
             } else {
-                raffled_nfts~udict_set(256, key, begin_cell().store_uint(0, 1).end_cell().begin_parse());
+                raffled_nfts~udict_set(256, key, const_1bit_0());
             }
         }
     } until (~ found)
