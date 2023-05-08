@@ -1,0 +1,142 @@
+"TonUtil.fif" include
+"Asm.fif" include
+// automatically generated from `../stdlib.fc` `./deployer.fc` incl:`./../op-codes.fc` 
+PROGRAM{
+  DECLPROC recv_internal
+  recv_internal PROC:<{
+    DUP
+    SEMPTY
+    IFJMP:<{
+      4 BLKDROP
+    }>
+    SWAP
+    CTOS
+    4 LDU
+    SWAP
+    1 PUSHINT
+    AND
+    IFJMP:<{
+      4 BLKDROP
+    }>
+    LDMSGADDR
+    DROP
+    SWAP
+    32 LDU
+    0x05138d91 PUSHINT
+    s2 s(-1) PUXC
+    EQUAL
+    IFJMP:<{
+      NIP
+      64 LDU
+      LDMSGADDR
+      32 LDU
+      0x0fe0ede PUSHINT
+      s1 s2 XCHG
+      NEQ
+      404 THROWIF
+      LDREF
+      LDREF
+      ENDS
+      OVER
+      HASHCU
+      0 PUSHINT
+      NEWC
+      8 STI
+      256 STU
+      ENDC
+      CTOS
+      7 PUSHINT
+      4 PUSHINT
+      24 PUSHINT
+      NEWC
+      6 STU
+      3 STU
+      s2 PUSH
+      STSLICER
+      20000000 PUSHINT
+      STGRAMS
+      108 STU
+      s1 s3 XCHG
+      STREF
+      STREF
+      ENDC
+      1 PUSHINT
+      SENDRAWMSG
+      0 PUSHINT
+      DUP
+      4 PUSHINT
+      0x5fcc3d14 PUSHINT
+      s2 PUSH
+      24 PUSHINT
+      NEWC
+      6 STU
+      s0 s9 XCHG2
+      STSLICER
+      s3 PUSH
+      STGRAMS
+      s1 s8 XCHG
+      107 STU
+      s1 s7 XCHG
+      32 STU
+      s1 s5 XCHG
+      64 STU
+      s1 s5 XCHG
+      3 STU
+      SWAP
+      STSLICER
+      SWAP
+      STSLICER
+      1 STI
+      OVER
+      STGRAMS
+      1 STI
+      ENDC
+      -ROT
+      SUB
+      DUP
+      1000000 PUSHINT
+      LESS
+      IF:<{
+        DROP
+        1000000 PUSHINT
+      }>ELSE<{
+        1000 PUSHINT
+        ADD
+      }>
+      0 PUSHINT
+      RAWRESERVE
+      7 PUSHPOW2
+      SENDRAWMSG
+    }>
+    s3 POP
+    s3 POP
+    s2 PUSH
+    1 EQINT
+    IFJMP:<{
+      3 BLKDROP
+    }>
+    s0 s2 XCHG
+    555 PUSHINT
+    EQUAL
+    IFJMP:<{
+      c4 PUSH
+      CTOS
+      LDMSGADDR
+      DROP
+      ROT
+      SDEQ
+      403 THROWIFNOT
+      LDREF
+      DROP
+      CTOS
+      8 LDU
+      LDREF
+      DROP
+      SWAP
+      SENDRAWMSG
+    }>
+    2DROP
+    16 PUSHPOW2DEC
+    THROWANY
+  }>
+}END>c
