@@ -1,8 +1,26 @@
 import {Address, Builder, Cell, contractAddress, StateInit} from "ton";
 import {NftAuctionV2CodeCell} from "./NftAuctionV2.source";
 import {NftAuctionData} from "../nft-auction/NftAuction.data";
+import BN from "bn.js";
 
 export type NftAuctionV2Data = NftAuctionData
+export type NftAuctionV3R2Data = Omit<NftAuctionData, 'minStep'> & {
+  minPercentStep: number
+}
+
+export function buildNftAuctionV3R2DataCell(data: NftAuctionV3R2Data) {
+  if (data.minPercentStep < 1) {
+    throw new Error('minPercentStep less 1')
+  }
+  if (data.minPercentStep > 100) {
+    throw new Error('minPercentStep great 1000')
+  }
+  return buildNftAuctionV2DataCell({
+    ...data,
+    minStep: new BN(data.minPercentStep),
+  })
+}
+
 
 export function buildNftAuctionV2DataCell(data: NftAuctionV2Data) {
 
