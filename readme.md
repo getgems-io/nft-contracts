@@ -11,6 +11,10 @@ This repository is a collection of contracts for TON blockchain used at getgems.
 - Getgems Single-NFT contract with tests
 - [NFT Swap](swap.md) contract with tests
 
+### For sale contracts
+- marketplace royalty: 5% (marketplaceFeeFactor: 5, marketplaceFeeBase: 100)
+- marketplaceFeeAddress: EQCjk1hh952vWaE9bRguFkAhDAL5jj3xj9p0uPWrFBq_GEMS
+- marketplaceAddress: EQBYTuYbLf8INxFtD8tQeNk5ZLy-nAX9ahQbG_yl1qQ-GEMS
 
 ### Actual sale contracts supported by getgems.io
 
