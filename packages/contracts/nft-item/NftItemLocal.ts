@@ -89,10 +89,6 @@ export class NftItemLocal {
     //  Internal messages
     //
 
-    async sendTransfer(from: Address, to: Address) {
-
-    }
-
     async sendGetStaticData(from: Address) {
         let msgBody = Queries.getStaticData({})
 

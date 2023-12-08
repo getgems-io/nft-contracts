@@ -99,15 +99,19 @@ export const OperationCodes = {
 }
 
 export const Queries = {
-    transfer: (params: { queryId?: number, newOwner: Address, responseTo?: Address, forwardAmount?: BN }) => {
-        let msgBody = new Cell()
+    transfer: (params: { queryId?: number; newOwner: Address; responseTo?: Address; forwardAmount?: BN, forwardPayload?: Cell }) => {
+        const msgBody = new Cell()
         msgBody.bits.writeUint(OperationCodes.transfer, 32)
         msgBody.bits.writeUint(params.queryId || 0, 64)
         msgBody.bits.writeAddress(params.newOwner)
         msgBody.bits.writeAddress(params.responseTo || null)
         msgBody.bits.writeBit(false) // no custom payload
         msgBody.bits.writeCoins(params.forwardAmount || 0)
-        msgBody.bits.writeBit(0) // no forward_payload yet
+        if (params.forwardPayload) {
+          msgBody.writeCell(params.forwardPayload)
+        } else {
+          msgBody.bits.writeBit(0) // no forward_payload yet
+        }
 
         return msgBody
     },
