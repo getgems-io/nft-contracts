@@ -15,6 +15,8 @@ int nft_send_amount() asm "50000000 PUSHINT"; ;; 0.05 TON
 int min_tons_per_nft() asm "100000000 PUSHINT"; ;; 0.1 TON
 int min_tons_for_storage_after_swap() asm "1000000 PUSHINT"; ;; 0.001 TON
 
+slice const_1bit_1() asm "b{1} PUSHSLICE";
+
 global int state;
 global slice supervisor;
 global slice commission_gainer;
@@ -72,7 +74,7 @@ global int right_coins_got;
         return (dict, 0);
     }
 
-    dict~udict_set(256, nft, begin_cell().store_uint(1,1).end_cell().begin_parse());
+    dict~udict_set(256, nft, const_1bit_1());
     return (dict, -1);
 }
 
