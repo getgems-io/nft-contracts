@@ -32,6 +32,15 @@ This repository is a collection of contracts for TON blockchain used at getgems.
 - storage format [NftAuctionV2.data.ts:11](packages%2Fcontracts%2Fnft-auction-v2%2FNftAuctionV2.data.ts)
 - example https://tonviewer.com/EQDQq1YoQr9P9jNSRalcq6_PJjYSJKrsG5zLuvyVp74aoTp7
 
+#### [nft-offer-v1r3.fc](packages%2Fcontracts%2Fsources%2Fnft-offer-v1r3.fc)
+- code hash base64(bl1mf6bvqBh8bQKe/UAVYBIy/S42wpHbw0be2rbcgCQ=)
+- code hash hex(6E5D667FA6EFA8187C6D029EFD4015601232FD2E36C291DBC346DEDAB6DC8024)
+- code boc [NftOffer.source.ts:13](packages%2Fcontracts%2Fnft-offer%2FNftOffer.source.ts)
+- storage format [NftOfferData.ts:116](packages%2Fcontracts%2Fnft-offer%2FNftOfferData.ts)
+- example mainnet: https://tonviewer.com/EQAPCdspv0uVHTa3ItpR49FlBEaaBKFDz5G8m6fmEyqhyY3J
+- example testnet: https://testnet.tonviewer.com/0QCueSxg3HIgAJkuyuGZN3N-b88OxSqpECWdEDn-ns2o0ooo
+- contract description (ru): [index-notice-ru.md](packages%2Fcontracts%2Fnft-offer%2Findex-notice-ru.md)
+
 ### Deprecated sale contracts
 
 #### [nft-fixprice-sale-v3.fc](packages%2Fcontracts%2Fsources%2Fnft-fixprice-sale-v3.fc)
