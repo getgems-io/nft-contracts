@@ -1,5 +1,6 @@
 ;; NFT sale smart contract v3r3
-;; It's a v3r2 but with returning query_id, handling code 32
+;; It's a v3r2 but with returning query_id, handling code 32, allow change price
+;; see https://github.com/getgems-io/nft-contracts
 
 #include "imports/stdlib.fc";
 #include "op-codes.fc";
