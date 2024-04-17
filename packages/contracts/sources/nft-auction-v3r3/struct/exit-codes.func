@@ -1,0 +1,20 @@
+;;
+;;  custom TVM exit codes
+;;
+
+int exit::low_bid()             asm "1000 PUSHINT";
+int exit::auction_init()        asm "1001 PUSHINT";
+int exit::no_transfer()         asm "1002 PUSHINT";
+int exit::not_message()         asm "1003 PUSHINT";
+int exit::not_cancel()          asm "1004 PUSHINT";
+int exit::auction_end()         asm "1005 PUSHINT";
+int exit::already_activated()   asm "1006 PUSHINT";
+int exit::cant_cancel_end()     asm "1007 PUSHINT";
+int exit::low_amount()          asm "1008 PUSHINT";
+int exit::cant_cancel_bid()     asm "1009 PUSHINT";
+int exit::cant_stop_time()      asm "1010 PUSHINT";
+int exit::non_profitable()      asm "1011 PUSHINT";
+int exit::bad_mode()            asm "1012 PUSHINT";
+int exit::last_bid_too_close()  asm "1013 PUSHINT";
+int exit::its_too_log_auc()     asm "1014 PUSHINT";
+int exit::not_activated_yet()   asm "1015 PUSHINT";

@@ -34,12 +34,14 @@ getgems is not responsible for users who use it for the purpose of deception. To
 - example mainnet https://tonviewer.com/EQCUn-X9Uhe1EkNRhHGT-Jx0y5RX5nj7MB9WgHi7c04wYNZw
 - contract description (ru): [description-ru.md](packages%2Fcontracts%2Fnft-fixprice-sale-v3%2Fdescription-ru.md)
 
-#### [nft-auction-v3r2.func](packages%2Fcontracts%2Fsources%2Fnft-auction-v3r2%2Fnft-auction-v3r2.func)
-- code hash base64(G9nFo5v_t6DzQViLXdkrgTqEK_Ze8UEJOCIAzq-Pct8)
-- code hash hex(1BD9C5A39BFFB7A0F341588B5DD92B813A842BF65EF14109382200CEAF8F72DF)
-- code boc [NftAuctionV2.source.ts:7](packages%2Fcontracts%2Fnft-auction-v2%2FNftAuctionV2.source.t)
-- storage format [NftAuctionV2.data.ts:11](packages%2Fcontracts%2Fnft-auction-v2%2FNftAuctionV2.data.ts)
-- example https://tonviewer.com/EQDQq1YoQr9P9jNSRalcq6_PJjYSJKrsG5zLuvyVp74aoTp7
+### [nft-auction-v3r3.func](packages%2Fcontracts%2Fsources%2Fnft-auction-v3r3%2Fnft-auction-v3r3.func)
+- code hash base64(lw3IrF4cwGNxiOdT16UYIJ6L+gs60ntidFOiiS7pFQI=)
+- code hash hex(970dc8ac5e1cc0637188e753d7a518209e8bfa0b3ad27b627453a2892ee91502)
+- code boc NftAuctionV3R3CodeBoc [NftAuctionV2.source.ts](packages%2Fcontracts%2Fnft-auction-v2%2FNftAuctionV2.source.ts)
+- storage format buildNftAuctionV3R3DataCell [NftAuctionV2.data.ts](packages%2Fcontracts%2Fnft-auction-v2%2FNftAuctionV2.data.ts)
+- example testnet https://testnet.tonviewer.com/EQDwl8XyS-vsXg7cc8RFJ_TFOPQbMPx5kMmohEBvDNti3eA9
+- example mainnet https://tonviewer.com/EQCjRyNFSsyqx5njAUH8xKUkuFULLHKnk4C-BM3eBDFuZArs
+- contract description (ru): [description-ru.md](packages%2Fcontracts%2Fnft-auction-v2%2Fdescription-ru.md)
 
 #### [nft-offer-v1r3.fc](packages%2Fcontracts%2Fsources%2Fnft-offer-v1r3.fc)
 - code hash base64(bl1mf6bvqBh8bQKe/UAVYBIy/S42wpHbw0be2rbcgCQ=)
@@ -51,6 +53,13 @@ getgems is not responsible for users who use it for the purpose of deception. To
 - contract description (ru): [index-notice-ru.md](packages%2Fcontracts%2Fnft-offer%2Findex-notice-ru.md)
 
 ### Deprecated sale contracts
+
+#### [nft-auction-v3r2.func](packages%2Fcontracts%2Fsources%2Fnft-auction-v3r2%2Fnft-auction-v3r2.func)
+- code hash base64(G9nFo5v_t6DzQViLXdkrgTqEK_Ze8UEJOCIAzq-Pct8)
+- code hash hex(1BD9C5A39BFFB7A0F341588B5DD92B813A842BF65EF14109382200CEAF8F72DF)
+- code boc [NftAuctionV2.source.ts:7](packages%2Fcontracts%2Fnft-auction-v2%2FNftAuctionV2.source.t)
+- storage format [NftAuctionV2.data.ts:11](packages%2Fcontracts%2Fnft-auction-v2%2FNftAuctionV2.data.ts)
+- example https://tonviewer.com/EQDQq1YoQr9P9jNSRalcq6_PJjYSJKrsG5zLuvyVp74aoTp7
 
 #### [nft-fixprice-sale-v3r2.fc](packages%2Fcontracts%2Fsources%2Fnft-fixprice-sale-v3r2.fc)
 - code hash base64(3rU7bFdlwebNI4v0e8XoO6WWvcwEsLhM1Qqx5HSgjzE)

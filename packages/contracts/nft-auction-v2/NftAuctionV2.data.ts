@@ -109,3 +109,48 @@ export const Queries = {
 }
 
 export const AuctionV2Queries = Queries
+
+
+export function buildNftAuctionV3R3DataCell(data: Omit<NftAuctionV3R2Data, 'activated'>) {
+  if (data.minPercentStep < 1) {
+    throw new Error('minPercentStep less 1')
+  }
+  if (data.minPercentStep > 100) {
+    throw new Error('minPercentStep great 100')
+  }
+
+  const constantCell = new Builder()
+  constantCell.storeAddress(data.marketplaceAddress)
+  constantCell.storeCoins(data.minBid)
+  constantCell.storeCoins(data.maxBid)
+  constantCell.storeUint(new BN(data.minPercentStep), 7)
+  constantCell.storeUint(data.stepTimeSeconds, 17) // step_time
+  constantCell.storeAddress(data.nftAddress)
+  constantCell.storeUint(data.createdAtTimestamp, 32)
+
+  const feesCell = new Builder()
+  feesCell.storeAddress(data.marketplaceFeeAddress) // mp_fee_addr
+  feesCell.storeUint(data.marketplaceFeeFactor, 32) // mp_fee_factor
+  feesCell.storeUint(data.marketplaceFeeBase, 32) // mp_fee_base
+  feesCell.storeAddress(data.royaltyAddress) // royalty_fee_addr
+  feesCell.storeUint(data.royaltyFactor, 32) // royalty_fee_factor
+  feesCell.storeUint(data.royaltyBase, 32) // royalty_fee_base
+
+  const storage = new Builder()
+  storage.storeBit(data.end) // end?
+  storage.storeBit(false) // is_canceled
+  storage.storeBitArray([0, 0]) // last_member
+  storage.storeCoins(0) // last_bid
+  storage.storeUint(0, 32) // last_bid_at
+  storage.storeUint(data.endTimestamp, 32) // end_time
+  if (data.nftOwnerAddress) {
+    storage.storeAddress(data.nftOwnerAddress)
+  } else {
+    storage.storeBitArray([0, 0])
+  }
+  storage.storeUint(0, 64) // query_id
+  storage.storeRef(feesCell.endCell())
+  storage.storeRef(constantCell.endCell())
+
+  return storage.endCell()
+}

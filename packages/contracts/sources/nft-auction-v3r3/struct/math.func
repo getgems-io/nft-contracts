@@ -1,0 +1,30 @@
+;;
+;;  math utils
+;;
+
+int division(int a, int b) { ;; division with factor
+    return muldiv(a, 1000000000 {- 1e9 -}, b);
+}
+
+int multiply(int a, int b) { ;; multiply with factor
+    return muldiv (a, b, 1000000000 {- 1e9 -});
+}
+
+int math::get_percent(int a, int percent, int factor) {
+    if (factor == 0) {
+        return 0;
+    } else {
+        return division(multiply(a, percent), factor);
+    }
+}
+
+int math::check_profitable(int mp_fee_factor, int mp_fee_base, int royalty_fee_factor, int royalty_fee_base) {
+    int amount = 1000000000;
+    int mp_fee = math::get_percent(amount, mp_fee_factor, mp_fee_base);
+    int royalty_fee = math::get_percent(amount, royalty_fee_factor, royalty_fee_base);
+    int profit = amount - mp_fee - royalty_fee;
+    if (profit < 1) {
+        return 0;
+    }
+    return 1;
+}

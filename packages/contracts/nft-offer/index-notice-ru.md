@@ -41,4 +41,4 @@ ownership_assigned во время трансфера https://github.com/ton-blo
 - хеш кода контракта должен совпадать с эталонным, нельзя полагаться только на гет методы
 - full_price и баланс аккаунта не должны отличатся друг от друга больше чем на 0.05 тон
 - метод get_offer_data_v2 вызывается нормально и значение profit_price больше 0.001 тон
-- поля marketplace_address nft_address offer_owner_address royalty_address заполнены и содержат не пустые адреса
+- поля marketplace_address nft_address offer_owner_address royalty_address заполнены и содержат не пустые адреса, адрес должен быть валидным MsgAddress workchain 0
