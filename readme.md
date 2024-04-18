@@ -35,12 +35,12 @@ getgems is not responsible for users who use it for the purpose of deception. To
 - contract description (ru): [description-ru.md](packages%2Fcontracts%2Fnft-fixprice-sale-v3%2Fdescription-ru.md)
 
 #### [nft-auction-v3r3.func](packages%2Fcontracts%2Fsources%2Fnft-auction-v3r3%2Fnft-auction-v3r3.func)
-- code hash base64(lw3IrF4cwGNxiOdT16UYIJ6L+gs60ntidFOiiS7pFQI=)
-- code hash hex(970dc8ac5e1cc0637188e753d7a518209e8bfa0b3ad27b627453a2892ee91502)
+- code hash base64(u29ireD+stefqzuK6/CTCvmFU99gCTsgJ/Covxab/Ow=)
+- code hash hex(bb6f62ade0feb2d79fab3b8aebf0930af98553df60093b2027f0a8bf169bfcec)
 - code boc NftAuctionV3R3CodeBoc [NftAuctionV2.source.ts](packages%2Fcontracts%2Fnft-auction-v2%2FNftAuctionV2.source.ts)
 - storage format buildNftAuctionV3R3DataCell [NftAuctionV2.data.ts](packages%2Fcontracts%2Fnft-auction-v2%2FNftAuctionV2.data.ts)
-- example testnet https://testnet.tonviewer.com/EQDwl8XyS-vsXg7cc8RFJ_TFOPQbMPx5kMmohEBvDNti3eA9
-- example mainnet https://tonviewer.com/EQCjRyNFSsyqx5njAUH8xKUkuFULLHKnk4C-BM3eBDFuZArs
+- example testnet https://testnet.tonviewer.com/kQC_fD_gbAgXsuizLU-5usV4sIuRhotmM3DYIUSkBpFYXwAR
+- example mainnet https://tonviewer.com/EQCX_PNPUnJ1--3gKTR3jPj9OOJl4iwi132-07Q413vRIqI8
 - contract description (ru): [description-ru.md](packages%2Fcontracts%2Fnft-auction-v2%2Fdescription-ru.md)
 
 #### [nft-offer-v1r3.fc](packages%2Fcontracts%2Fsources%2Fnft-offer-v1r3.fc)

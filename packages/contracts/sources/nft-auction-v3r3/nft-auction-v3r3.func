@@ -32,6 +32,10 @@ global int      last_bid_at; ;; timestamp of last bid
 global int      last_query_id; ;; last processed query id
 global int      end_time; ;; unix end time
 global int      step_time; ;; by how much the time increases with the new bid (e.g. 30)
+global int      mp_fee_factor;
+global int      mp_fee_base;
+global int      royalty_fee_factor;
+global int      royalty_fee_base;
 
 ;; nft info cell (ref)
 global slice    nft_owner; ;; nft owner addres (should be sent nft if auction canceled or money from auction)
@@ -48,27 +52,23 @@ global slice    nft_addr; ;; nft address
     .store_uint(end_time, 32) ;; + stc    32
     .store_slice(nft_owner) ;; 267
     .store_uint(last_query_id, 64)
+    .store_uint(mp_fee_factor, 32)
+    .store_uint(mp_fee_base, 32)
+    .store_uint(royalty_fee_factor, 32)
+    .store_uint(royalty_fee_base, 32)
     .store_ref(fees_cell) ;; + ref
     .store_ref(constant_cell) ;; + ref
     .end_cell() ;; total 267 + 124 + 32 + 32 + 267 + 1 + 1 + 1 + 64 = 789
   );
 }
 
-(slice, int, int, slice, int, int) get_fees() inline_ref {
+(slice, slice) get_fees_addresses() inline_ref {
   slice fees = fees_cell.begin_parse();
   slice mp_fee_addr = fees~load_msg_addr();
-  int mp_fee_factor = fees~load_uint(32);
-  int mp_fee_base = fees~load_uint(32);
   slice royalty_fee_addr = fees~load_msg_addr();
-  int royalty_fee_factor = fees~load_uint(32);
-  int royalty_fee_base = fees~load_uint(32);
   return (
     mp_fee_addr,
-    mp_fee_factor,
-    mp_fee_base,
-    royalty_fee_addr,
-    royalty_fee_factor,
-    royalty_fee_base
+    royalty_fee_addr
   );
 }
 
@@ -84,6 +84,10 @@ global slice    nft_addr; ;; nft address
   end_time = ds~load_uint(32);
   nft_owner = ds~load_msg_addr();
   last_query_id = ds~load_uint(64);
+  mp_fee_factor = ds~load_uint(32);
+  mp_fee_base = ds~load_uint(32);
+  royalty_fee_factor = ds~load_uint(32);
+  royalty_fee_base = ds~load_uint(32);
   activated? = nft_owner.slice_bits() > 2;
 
   fees_cell = ds~load_ref();
@@ -135,28 +139,40 @@ global slice    nft_addr; ;; nft address
   .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
   .store_ref(nft_transfer_body.end_cell());
 
-  send_raw_message(nft_return_msg.end_cell(), 128);
+  send_raw_message(nft_return_msg.end_cell(), 130);
   end? = true;
   is_canceled? = true;
   pack_data();
 }
 
-() handle::end_auction(slice sender_addr) impure inline_ref {
+() handle::end_auction(slice sender_addr, int from_external) impure inline_ref {
   if (last_bid == 0) { ;; just return nft
+    if (from_external == true) {
+      [int my_balance, _] = get_balance();
+      throw_if(exit::low_bid(), my_balance < 500000000); ;; 0.5 ton
+      accept_message();
+    }
     handle::cancel(sender_addr);
     return ();
   }
 
   var (
     mp_fee_addr,
-    mp_fee_factor,
-    mp_fee_base,
-    royalty_fee_addr,
-    royalty_fee_factor,
-    royalty_fee_base
-  ) = get_fees();
+    royalty_fee_addr
+  ) = get_fees_addresses();
 
   int mp_fee = math::get_percent(last_bid, mp_fee_factor, mp_fee_base);
+  int royalty_fee = math::get_percent(last_bid, royalty_fee_factor, royalty_fee_base);
+  int profit = last_bid - mp_fee - royalty_fee;
+  if (from_external == true) {
+    ;; if profit less 0.5 TON then prevent end auc by external message
+    throw_if(exit::low_bid(), profit < 500000000);
+    ;; we will send 0.5 ton to nft
+    ;; and it returns to nft_owner
+    ;; because when from_external == true sender_addr should be nft_owner
+    profit = profit - 500000000;
+    accept_message();
+  }
 
   if (mp_fee > 0) {
     builder mp_transfer = begin_cell()
@@ -170,7 +186,7 @@ global slice    nft_addr; ;; nft address
     send_raw_message(mp_transfer.end_cell(), 2);
   }
 
-  int royalty_fee = math::get_percent(last_bid, royalty_fee_factor, royalty_fee_base);
+
 
   if (royalty_fee > 0) {
     builder royalty_transfer = begin_cell()
@@ -184,7 +200,6 @@ global slice    nft_addr; ;; nft address
     send_raw_message(royalty_transfer.end_cell(), 2);
   }
 
-  int profit = last_bid - mp_fee - royalty_fee;
   if (profit > 0) {
     builder prev_owner_msg = begin_cell()
     .store_uint(0x10, 6) ;; 0 (int_msg_info) 1 (ihr_disabled) 1 (no bounces) 00 (address)
@@ -213,7 +228,7 @@ global slice    nft_addr; ;; nft address
   .store_ref(nft_transfer_body.end_cell());
   send_raw_message(nft_transfer.end_cell(), 130); ;; 128 +2 for ignoring errors
   end? = true;
-  created_at? = now();
+  end_time = now();
   pack_data();
 }
 
@@ -221,23 +236,16 @@ global slice    nft_addr; ;; nft address
 ;;  main code
 ;;
 
-() return_last_bid(int my_balance, int is_cancel_auc) impure inline_ref {
+() return_last_bid(int my_balance) impure inline_ref {
   if (last_bid <= 0) {
     return ();
   }
-
-  int return_bid_amount = last_bid - 8449000; ;; 0.009909 TON magic gas price per bid processing
+  int return_bid_amount = last_bid - 5577000; ;; 0,005577 TON magic gas price per bid processing
   if (return_bid_amount > (my_balance - 10000000)) { ;; - 0.01 TON
     return_bid_amount = my_balance - 10000000;
   }
-
-  slice msg = msg::bid_return();
-
-  if (is_cancel_auc == true) {
-    msg = msg::auc_is_canceled();
-  }
-
   if (return_bid_amount > 0) {
+    slice msg = msg::bid_return();
     builder return_prev_bid = begin_cell()
     .store_uint(0x18, 6)
     .store_slice(last_member)
@@ -294,7 +302,9 @@ int get_next_min_bid() {
 
   var (op, query_id) = get_command_code(in_msg_body);
 
-  if (((end? == true) | (activated? == false)) & equal_slices(sender_addr, mp_addr) & (op == 555)) {
+  if (op == 555) {
+    throw_unless(exit::not_cancel(), ((end? == true) | (activated? == false)));
+    throw_unless(403, equal_slices(sender_addr, mp_addr));
     ;; way to fix unexpected troubles with auction contract
     ;; for example if some one transfer nft to this contract
     var msg = in_msg_body~load_ref().begin_parse();
@@ -302,7 +312,7 @@ int get_next_min_bid() {
     throw_if(exit::bad_mode(), mode & 32);
 
     int ten_min = 10 * 60;
-    throw_if(exit::last_bid_too_close(), (now() > (created_at? - ten_min)) & (now() < (created_at? + ten_min)));
+    throw_if(exit::last_bid_too_close(), (now() > (end_time - ten_min)) & (now() < (end_time + ten_min)));
     if (last_bid_at != 0 ) {
       throw_if(exit::last_bid_too_close(), (now() > (last_bid_at - ten_min)) & (now() < (last_bid_at + ten_min)));
     }
@@ -328,7 +338,7 @@ int get_next_min_bid() {
     throw_if(exit::low_amount(), msg_value < 100000000);
     throw_if(exit::cant_stop_time(), now() < end_time); ;; can't end auction in progress, only after end time
     throw_unless(403, equal_slices(sender_addr, nft_owner) | equal_slices(sender_addr, mp_addr) | equal_slices(sender_addr, last_member));
-    handle::end_auction(sender_addr);
+    handle::end_auction(sender_addr, false);
     return ();
   }
 
@@ -349,14 +359,6 @@ int get_next_min_bid() {
 
   ;; new bid
 
-  var (
-    mp_fee_addr,
-    mp_fee_factor,
-    mp_fee_base,
-    royalty_fee_addr,
-    royalty_fee_factor,
-    royalty_fee_base
-  ) = get_fees();
   var profitable = math::check_profitable(mp_fee_factor, mp_fee_base, royalty_fee_factor, royalty_fee_base);
   throw_if(exit::non_profitable(), profitable == 0); ;; decline bids for invalid contract
   int duration = end_time - now();
@@ -366,12 +368,12 @@ int get_next_min_bid() {
   ;; max bid buy nft
   if ((msg_value >= max_bid + 100000000) & (max_bid > 0)) { ;; 0.1 TON
     ;; end aution for this bid
-    return_last_bid(my_balance, false);
+    return_last_bid(my_balance);
     last_member = sender_addr;
     last_bid = max_bid;
     last_bid_at = now();
     last_query_id = query_id;
-    handle::end_auction(sender_addr);
+    handle::end_auction(sender_addr, false);
     return ();
   }
 
@@ -396,7 +398,7 @@ int get_next_min_bid() {
     return ();
   }
 
-  return_last_bid(my_balance, false);
+  return_last_bid(my_balance);
 
   last_member = sender_addr;
   last_bid = msg_value;
@@ -415,16 +417,11 @@ int get_next_min_bid() {
   var (op, _) = get_command_code(in_msg);
 
   if (op == 2) { ;; stop auction
+    throw_if(exit::not_activated_yet(), activated? == false);
     throw_if(exit::auction_end(), end? == true); ;; end = true mean this action already executed
     throw_if(exit::cant_stop_time(), now() < end_time); ;; can't end auction in progress, only after end time
-
-    [int balance, _] = get_balance();
-    throw_if(exit::low_amount(), balance < 100000000); ;; can't end auction because we don't have enough money for transfer
-
+    handle::end_auction(nft_owner, true);
     accept_message();
-
-    handle::end_auction(nft_owner);
-
     return ();
   }
 
@@ -437,12 +434,8 @@ int get_next_min_bid() {
 
   var (
     mp_fee_addr,
-    mp_fee_factor,
-    mp_fee_base,
-    royalty_fee_addr,
-    royalty_fee_factor,
-    royalty_fee_base
-  ) = get_fees();
+    royalty_fee_addr
+  ) = get_fees_addresses();
 
   var profitable = math::check_profitable(mp_fee_factor, mp_fee_base, royalty_fee_factor, royalty_fee_base);
   throw_if(exit::non_profitable(), profitable == 0);
@@ -475,12 +468,8 @@ int get_next_min_bid() {
 
   var (
     mp_fee_addr,
-    mp_fee_factor,
-    mp_fee_base,
-    royalty_fee_addr,
-    royalty_fee_factor,
-    royalty_fee_base
-  ) = get_fees();
+    royalty_fee_addr
+  ) = get_fees_addresses();
 
   var profitable = math::check_profitable(mp_fee_factor, mp_fee_base, royalty_fee_factor, royalty_fee_base);
   throw_if(exit::non_profitable(), profitable == 0);

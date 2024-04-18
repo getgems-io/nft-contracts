@@ -123,18 +123,14 @@ export function buildNftAuctionV3R3DataCell(data: Omit<NftAuctionV3R2Data, 'acti
   constantCell.storeAddress(data.marketplaceAddress)
   constantCell.storeCoins(data.minBid)
   constantCell.storeCoins(data.maxBid)
-  constantCell.storeUint(new BN(data.minPercentStep), 7)
+  constantCell.storeUint(data.minPercentStep, 7)
   constantCell.storeUint(data.stepTimeSeconds, 17) // step_time
   constantCell.storeAddress(data.nftAddress)
   constantCell.storeUint(data.createdAtTimestamp, 32)
 
   const feesCell = new Builder()
   feesCell.storeAddress(data.marketplaceFeeAddress) // mp_fee_addr
-  feesCell.storeUint(data.marketplaceFeeFactor, 32) // mp_fee_factor
-  feesCell.storeUint(data.marketplaceFeeBase, 32) // mp_fee_base
   feesCell.storeAddress(data.royaltyAddress) // royalty_fee_addr
-  feesCell.storeUint(data.royaltyFactor, 32) // royalty_fee_factor
-  feesCell.storeUint(data.royaltyBase, 32) // royalty_fee_base
 
   const storage = new Builder()
   storage.storeBit(data.end) // end?
@@ -149,6 +145,10 @@ export function buildNftAuctionV3R3DataCell(data: Omit<NftAuctionV3R2Data, 'acti
     storage.storeBitArray([0, 0])
   }
   storage.storeUint(0, 64) // query_id
+  storage.storeUint(data.marketplaceFeeFactor, 32) // mp_fee_factor
+  storage.storeUint(data.marketplaceFeeBase, 32) // mp_fee_base
+  storage.storeUint(data.royaltyFactor, 32) // royalty_fee_factor
+  storage.storeUint(data.royaltyBase, 32) // royalty_fee_base
   storage.storeRef(feesCell.endCell())
   storage.storeRef(constantCell.endCell())
 
