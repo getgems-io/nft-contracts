@@ -29,7 +29,7 @@
 
 - хеш кода контракта должен совпадать с эталонным, нельзя полагаться только на гет методы
 - get_fix_price_data должен вызываться нормально, без ошибок
-- поля nft_owner_address, nft_address, marketplace_fee_address должны быть заполнены и содержать валидные адреса MsgAddress workchain 0
+- поля nft_owner_address, nft_address, marketplace_fee_address, royalty_address должны быть заполнены и содержать валидные адреса MsgAddress workchain 0
 - full_price должен быть больше чем сумма royalty_amount и marketplace_fee
 - is_complete равен 0, если это не так, то нет смысла отправлять тоны на этот контракт
 - необходимо проверить что нфт, на которую ссылается контракт продажи (nft_address), действительно принадлежит ему, то-есть у нфт owner_address это адрес контракта продажи
