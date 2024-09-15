@@ -1,4 +1,4 @@
-# Getgems NFT contracts
+8109f6ec59e62b1526db41c554a5ecd6143e00b4# Getgems NFT contracts
 
 This repository is a collection of contracts for TON blockchain used at getgems.io
 
