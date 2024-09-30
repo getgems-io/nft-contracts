@@ -88,3 +88,4 @@ getgems is not responsible for users who use it for the purpose of deception. To
 - code boc [NftAuctionV2.source.ts:3](packages%2Fcontracts%2Fnft-auction-v2%2FNftAuctionV2.source.t)
 - storage format [NftAuctionV2.data.ts:25](packages%2Fcontracts%2Fnft-auction-v2%2FNftAuctionV2.data.ts)
 - example https://tonviewer.com/EQAN1LCxXZtfM1kVrBTcEP1KRRlwNmhOcue6w0NXt6O4trU8
+0:0816e9c02d110e790f7db3231b3bab12cccfc56b546c3c3e530684b4a9578a43
