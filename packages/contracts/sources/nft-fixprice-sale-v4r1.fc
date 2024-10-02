@@ -1,6 +1,7 @@
 ;; NFT sale smart contract v4
 ;; base on nft-fixprice-sale-v3r3.fc
 ;; + feature sale for jetton
+;; https://github.com/getgems-io/nft-contracts/blob/main/packages/contracts/sources/nft-fixprice-sale-v4r1.fc
 
 #include "imports/stdlib.fc";
 #include "op-codes.fc";
