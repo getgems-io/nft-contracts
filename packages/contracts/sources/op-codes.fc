@@ -5,6 +5,11 @@ int op::get_static_data() asm "0x2fcb26a2 PUSHINT";
 int op::report_static_data() asm "0x8b771735 PUSHINT";
 int op::get_royalty_params() asm "0x693d3950 PUSHINT";
 int op::report_royalty_params() asm "0xa8cb00ad PUSHINT";
+int op::fix_price_v4_deploy_jetton() asm "0xfb5dbf47 PUSHINT";
+int op::fix_price_v4_deploy_blank() asm "0x664c0905 PUSHINT";
+int op::fix_price_v4_cancel() asm "0x3 PUSHINT";
+int op::fix_price_v4_change_price() asm "0xfd135f7b PUSHINT";
+int op::fix_price_v4_buy() asm "0x2 PUSHINT";
 
 ;; NFTEditable
 int op::edit_content() asm "0x1a0b9d51 PUSHINT";
@@ -22,3 +27,6 @@ int op::ownership_proof_bounced() asm "0xc18e86d2 PUSHINT";
 int op::destroy() asm "0x1f04537a PUSHINT";
 int op::revoke() asm "0x6f89f5e3 PUSHINT";
 int op::take_excess() asm "0xd136d3b3 PUSHINT";
+
+int jetton::transfer_notification() asm "0x7362d09c PUSHINT";
+int jetton::transfer() asm "0xf8a7ea5 PUSHINT";
