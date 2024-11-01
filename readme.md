@@ -25,6 +25,16 @@ getgems is not responsible for users who use it for the purpose of deception. To
 
 ### Actual sale contracts supported by getgems.io
 
+#### [nft-fixprice-sale-v4r1.fc](packages/contracts/sources/nft-fixprice-sale-v4r1.fc)
+- code hash base64(a5WmQYucnSNZBF0edVm41UmuDlBvJMqrWPowyPsf64Y=)
+- code hash hex(6B95A6418B9C9D2359045D1E7559B8D549AE0E506F24CAAB58FA30C8FB1FEB86)
+- code boc NftFixPriceSaleV4R1CodeBoc [NftFixPriceSaleV4.source.ts](packages/contracts/nft-fixprice-sale-v4/NftFixPriceSaleV4.source.ts)
+- storage format buildNftFixPriceSaleV4R1Data [NftFixpriceSaleV3.data.ts:74](packages%2Fcontracts%2Fnft-fixprice-sale-v3%2FNftFixpriceSaleV3.data.ts)[NftFixPriceSaleV4.data.ts](packages/contracts/nft-fixprice-sale-v4/NftFixPriceSaleV4.data.ts)
+- example testnet https://testnet.tonviewer.com/kQDiSfanFAN3IUZ6wIKy3KHo-inSdWU8oc0BI8TZPYUzNMRJ
+- example mainnet https://tonviewer.com/EQD2Kivo-msu8dsQNiMkPHMoEfmNA3oU-ZQ_yWejbN9vXmVu
+- contract description (ru): [description-ru.md](packages/contracts/nft-fixprice-sale-v4/description-ru.md)
+
+
 #### [nft-fixprice-sale-v3r3.fc](packages%2Fcontracts%2Fsources%2Fnft-fixprice-sale-v3r3.fc)
 - code hash base64(JCIfpXHlQuBVx3vt/b9SfHr0YM/cfzRMRQeHtM+h600=)
 - code hash hex(24221FA571E542E055C77BEDFDBF527C7AF460CFDC7F344C450787B4CFA1EB4D)
