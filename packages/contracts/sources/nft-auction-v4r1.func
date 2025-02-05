@@ -1,0 +1,695 @@
+#include "./stdlib.fc";
+#include "op-codes.fc";
+
+
+;; auction for jettons/tons
+;; see https://github.com/getgems-io/nft-contracts
+
+;;
+;;  custom TVM exit codes
+;;
+
+int exit::low_bid()             asm "1000 PUSHINT";
+int exit::auction_init()        asm "1001 PUSHINT";
+int exit::no_transfer()         asm "1002 PUSHINT";
+int exit::not_cancel()          asm "1004 PUSHINT";
+int exit::auction_end()         asm "1005 PUSHINT";
+int exit::already_activated()   asm "1006 PUSHINT";
+int exit::low_amount()          asm "1008 PUSHINT";
+int exit::cant_cancel_bid()     asm "1009 PUSHINT";
+int exit::cant_stop_time()      asm "1010 PUSHINT";
+int exit::bad_mode()            asm "1012 PUSHINT";
+int exit::last_bid_too_close()  asm "1013 PUSHINT";
+int exit::its_too_long_auc()     asm "1014 PUSHINT";
+int exit::not_activated_yet()   asm "1015 PUSHINT";
+int exit::broken_state()   asm "1016 PUSHINT";
+int exit::wrong_currency()   asm "1017 PUSHINT";
+
+
+const int op::finish_acution = "finish_auction"c;
+const int op::cancel_acution = "cancel_auction"c;
+const int op::set_jetton_wallet = "set_jetton_wallet"c;
+const int op::process_ton_bid = "process_ton_bid"c;
+const int op::deploy_auction = "deploy_auction"c;
+
+const int TON_FOR_NFT_PROCESS = 100000000; ;; 0.1 TON
+const int TON_FOR_JETTON = 50000000; ;; 0.05 TON
+const int TON_FOR_END_JETTON_AUC = TON_FOR_JETTON + TON_FOR_JETTON + TON_FOR_JETTON + TON_FOR_NFT_PROCESS;
+const int TON_FOR_END_TON_AUC = TON_FOR_NFT_PROCESS;
+
+forall X -> int cast_to_int(X x) asm "NOP";
+slice null_addr() asm "b{00} PUSHSLICE";
+int get_compute_fee(int workchain, int gas_used) asm(gas_used workchain) "GETGASFEE";
+
+;;
+;;  persistant and runtime storage description
+;;
+
+global int      init?; ;; init_data safe check
+global int      end?; ;; end auction or not
+global slice    mp_addr; ;; the address of the marketplace from which the contract is deployed
+global int      activated?; ;; contract is activated by external message or by nft transfer
+global int      created_at?; ;; timestamp of created acution
+global int      is_canceled?; ;; auction was cancelled by owner
+
+global cell fees_cell;
+global cell constant_cell;
+
+global int      is_jetton_mode; ;;
+global slice    jetton_wallet; ;; jetton wallet address or null
+global slice    jetton_master; ;; jetton master address or null for detect jettons
+global int      min_bid; ;; minimal bid
+global int      max_bid; ;; maximum bid
+global int      min_step; ;; minimum step (can be 0)
+global slice    last_member; ;; last member address
+global int      last_bid; ;; last bid amount
+global int      last_bid_at; ;; timestamp of last bid
+global int      last_query_id; ;; last processed query id
+global int      end_time; ;; unix end time
+global int      step_time; ;; by how much the time increases with the new bid (e.g. 30)
+global int      public_key; ;; public key for jetton mode
+global int      is_broken_state; ;; broken state
+global cell     jt_cell;
+
+;; nft info cell (ref)
+global slice    nft_owner; ;; nft owner addres (should be sent nft if auction canceled or money from auction)
+global slice    nft_addr; ;; nft address
+
+;;
+;;  math utils
+;;
+
+int division(int a, int b) inline {
+    ;; division with factor
+    return muldiv(a, 1000000000 {- 1e9 -}, b);
+}
+
+int multiply(int a, int b) inline {
+    ;; multiply with factor
+    return muldiv(a, b, 1000000000 {- 1e9 -});
+}
+
+int math::get_percent(int a, int percent, int factor) inline {
+    if (factor == 0) {
+        return 0;
+    } else {
+        return division(multiply(a, percent), factor);
+    }
+}
+
+int math::check_profitable(int mp_fee_factor, int mp_fee_base, int royalty_fee_factor, int royalty_fee_base) inline {
+    int amount = 10000000000;
+    int mp_fee = math::get_percent(amount, mp_fee_factor, mp_fee_base);
+    int royalty_fee = math::get_percent(amount, royalty_fee_factor, royalty_fee_base);
+    int profit = amount - mp_fee - royalty_fee;
+    if (profit < 1) {
+        return 0;
+    }
+    return 1;
+}
+
+
+() send_jettons(slice jetton_wallet_address, int query_id, slice address, int amount, slice response_address, int fwd_amount) impure inline_ref {
+    if (amount <= 0) {
+        return ();
+    }
+
+    int should_carry_gas = false;
+    if (fwd_amount == -1) {
+        fwd_amount = 0;
+        should_carry_gas = true;
+    }
+
+    var msg_payload = begin_cell()
+        .store_uint(jetton::transfer(), 32) ;; transfer
+        .store_uint(query_id, 64)
+        .store_coins(amount)
+        .store_slice(address)
+        .store_slice(response_address)
+        .store_int(0, 1)
+        .store_coins(fwd_amount)
+        .store_uint(0, 1)
+        .end_cell();
+
+    var msg = begin_cell()
+        .store_uint(0x10, 6) ;; nobounce
+        .store_slice(jetton_wallet_address)
+        .store_coins(should_carry_gas ? 0 : (40000000 + fwd_amount)) ;; 0.04 TON or zero
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(msg_payload)
+        .end_cell();
+
+    int flag = should_carry_gas ? (64 + 2) : (1 + 2);
+    send_raw_message(msg, flag);
+}
+
+() pack_data() impure inline_ref {
+    set_data(
+        begin_cell()
+            .store_int(end?, 1) ;;              1
+            .store_int(is_canceled?, 1) ;;      1
+            .store_slice(last_member) ;;            267 ($10 with Anycast = 0)
+            .store_coins(last_bid) ;;               127
+            .store_uint(last_bid_at, 32) ;;     32
+            .store_uint(end_time, 32) ;;        32
+            .store_slice(nft_owner) ;;              267
+            .store_uint(last_query_id, 64) ;;   64
+            .store_ref(fees_cell) ;; + ref
+            .store_ref(constant_cell) ;; + ref
+            .store_maybe_ref(jt_cell) ;; +1
+            .end_cell() ;; total 1+1+267+127+32+32+267+64+1 = 792
+    );
+}
+
+() init_data() impure inline_ref {- save for get methods -} {
+    ifnot (null?(init?)) {
+        return ();
+    }
+
+    slice ds = get_data().begin_parse();
+    end? = ds~load_int(1);
+    is_canceled? = ds~load_int(1);
+    last_member = ds~load_msg_addr();
+    last_bid = ds~load_coins();
+    last_bid_at = ds~load_uint(32);
+    end_time = ds~load_uint(32);
+    nft_owner = ds~load_msg_addr();
+    activated? = nft_owner.slice_bits() > 2;
+    last_query_id = ds~load_uint(64);
+
+    fees_cell = ds~load_ref();
+    constant_cell = ds~load_ref();
+    slice constants = constant_cell.begin_parse();
+    mp_addr = constants~load_msg_addr(); ;; 267
+    min_bid = constants~load_coins(); ;; 127
+    max_bid = constants~load_coins(); ;; 127
+    min_step = constants~load_uint(7); ;;7
+    step_time = constants~load_uint(17); ;;17
+    nft_addr = constants~load_msg_addr(); ;; 267
+    created_at? = constants~load_uint(32); ;; 32
+    ;; total 267+127+127+7+17+267+32=844
+
+    int has_jetton_data = ds~load_uint(1);
+    public_key = 0;
+    is_jetton_mode = false;
+    if (has_jetton_data == 1) {
+        jt_cell = ds~load_ref();
+        slice jt_slice = jt_cell.begin_parse();
+
+        jetton_wallet = jt_slice~load_msg_addr(); ;; 267
+        jetton_master = jt_slice~load_msg_addr(); ;; 267
+        is_jetton_mode = jetton_wallet.slice_bits() > 2;
+
+        is_broken_state = false;
+        if ((jetton_master.slice_bits() > 2) & (is_jetton_mode == false)) {
+            is_broken_state = true;
+        }
+
+        int has_public_key = jt_slice~load_uint(1);
+        if (has_public_key == 1) {
+            public_key = jt_slice~load_uint(256);
+            is_broken_state = true;
+        }
+    } else {
+        jetton_wallet = null_addr();
+        jetton_master = null_addr();
+        is_broken_state = false;
+    }
+
+
+
+
+    init? = true;
+}
+
+(slice, slice, int, int, int, int) get_fees_addresses() inline_ref {
+    slice fees = fees_cell.begin_parse();
+    slice mp_fee_addr = fees~load_msg_addr();
+    slice royalty_fee_addr = fees~load_msg_addr();
+    int mp_fee_factor = fees~load_uint(32);
+    int mp_fee_base = fees~load_uint(32);
+    int royalty_fee_factor = fees~load_uint(32);
+    int royalty_fee_base = fees~load_uint(32);
+    return (
+        mp_fee_addr,
+        royalty_fee_addr,
+        mp_fee_factor,
+        mp_fee_base,
+        royalty_fee_factor,
+        royalty_fee_base
+    );
+}
+
+{-
+    SHOULD
+    [+] check init auction or not
+    [+] check op
+    [+] change nft owner
+    [+] change auction status
+-}
+() handle::try_init_auction(slice sender_addr, slice in_msg_body) impure inline_ref {
+    throw_if(exit::auction_init(), nft_owner.slice_bits() > 2); ;; throw if auction already init
+    throw_unless(exit::no_transfer(), in_msg_body~load_uint(32) == op::ownership_assigned()); ;; throw if it`s not ownership assigned
+    in_msg_body~skip_bits(64); ;; query id
+    nft_owner = in_msg_body~load_msg_addr();
+    end? = false;
+    activated? = true;
+    pack_data();
+}
+
+() return_nft(int query_id, slice fee_pay_address, slice new_owner) impure inline_ref {
+    builder nft_transfer_body = begin_cell()
+        .store_uint(op::transfer(), 32)
+        .store_uint(query_id, 64) ;; query id
+        .store_slice(new_owner) ;; return nft no creator
+        .store_slice(fee_pay_address) ;; response_destination
+        .store_uint(0, 1) ;; custom payload
+        .store_coins(1) ;; forward amount
+        .store_uint(0, 1); ;; forward payload
+
+    builder nft_return_msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(nft_addr)
+        .store_coins(0)
+        .store_uint(1, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_ref(nft_transfer_body.end_cell());
+
+    send_raw_message(nft_return_msg.end_cell(), 130);  ;; 128 +2 for ignoring errors
+}
+
+() handle::cancel(int query_id, slice sender_addr) impure inline_ref {
+    return_nft(query_id, sender_addr, nft_owner);
+    end? = true;
+    is_canceled? = true;
+    pack_data();
+}
+
+() send_founds(slice to_address, int amonut, int query_id, slice fee_pay_address) impure inline_ref {
+    if (is_jetton_mode == true) {
+        send_jettons(jetton_wallet, query_id, to_address, amonut, fee_pay_address, 1);
+    } else {
+        builder transfer = begin_cell()
+            .store_uint(0x10, 6) ;; 0 (int_msg_info) 1 (ihr_disabled) 1 (no bounces) 00 (address)
+            .store_slice(to_address)
+            .store_coins(amonut)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1);
+
+        send_raw_message(transfer.end_cell(), 2);
+    }
+}
+
+int get_price_for_end_auction() inline {
+    if (is_jetton_mode == true) {
+        return TON_FOR_END_JETTON_AUC;
+    } else {
+        return TON_FOR_END_TON_AUC;
+    }
+}
+
+() check_ok_balance(int my_balance) impure inline {
+    throw_if(exit::low_bid(), my_balance < get_price_for_end_auction());
+    accept_message();
+}
+
+() handle::end_auction(slice sender_addr, int from_external, int query_id) impure inline_ref {
+    if (last_bid == 0) {
+        ;; just return nft
+
+        if (from_external == true) {
+            [int my_balance, _] = get_balance();
+            check_ok_balance(my_balance);
+        }
+
+        handle::cancel(query_id, sender_addr);
+        return ();
+    }
+
+    var (
+        mp_fee_addr,
+        royalty_fee_addr,
+        mp_fee_factor,
+        mp_fee_base,
+        royalty_fee_factor,
+        royalty_fee_base
+    ) = get_fees_addresses();
+
+    int last_bid_avaliable_profit = last_bid;
+    if (is_jetton_mode == false) {
+        [int my_balance, _] = get_balance();
+        last_bid_avaliable_profit = min(last_bid_avaliable_profit, (my_balance - get_price_for_end_auction()));
+        throw_unless(exit::low_amount(), last_bid_avaliable_profit > 0);
+    }
+
+
+    int mp_fee = math::get_percent(last_bid_avaliable_profit, mp_fee_factor, mp_fee_base);
+    int royalty_fee = math::get_percent(last_bid_avaliable_profit, royalty_fee_factor, royalty_fee_base);
+    int profit = last_bid_avaliable_profit - mp_fee - royalty_fee;
+
+    if (from_external == true) {
+        if (is_jetton_mode == false) {
+            check_ok_balance(profit);
+            profit = profit - get_price_for_end_auction();
+        } else {
+            [int my_balance, _] = get_balance();
+            check_ok_balance(my_balance);
+        }
+    }
+
+    if (mp_fee > 0) {
+        send_founds(mp_fee_addr, mp_fee, query_id, sender_addr);
+    }
+
+    if (royalty_fee > 0) {
+        send_founds(royalty_fee_addr, royalty_fee, query_id, sender_addr);
+    }
+
+    if (profit > 0) {
+        send_founds(nft_owner, profit, query_id, sender_addr);
+    }
+
+
+    return_nft(query_id, sender_addr, last_member);
+    end? = true;
+    is_canceled? = false;
+    end_time = now();
+    pack_data();
+}
+
+;;
+;;  main code
+;;
+
+() return_last_bid(int query_id, slice fee_pay_address, int my_balance) impure inline_ref {
+    if (last_bid <= 0) {
+        return ();
+    }
+    if (is_jetton_mode == true) {
+        send_jettons(jetton_wallet, query_id, last_member, last_bid, fee_pay_address, 1);
+    } else {
+        int magic_gas_price = get_compute_fee(false, 11169);
+        int return_bid_amount = last_bid - magic_gas_price;
+        if (return_bid_amount > (my_balance - 10000000)) {
+            ;; - 0.01 TON
+            return_bid_amount = my_balance - 10000000;
+        }
+        if (return_bid_amount > 0) {
+            builder return_prev_bid = begin_cell()
+                .store_uint(0x18, 6)
+                .store_slice(last_member)
+                .store_coins(return_bid_amount)
+                .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+                .store_uint(0, 32)
+                .store_slice("Your bid has been outbid by another user");
+
+            send_raw_message(return_prev_bid.end_cell(), 2);
+        }
+    }
+}
+
+int get_next_min_bid() {
+    if (is_jetton_mode) {
+        return math::get_percent(last_bid, 100 + min_step, 100);
+    } else {
+        return max(
+            last_bid + 100000000, ;; 0.1 ton
+            math::get_percent(last_bid, 100 + min_step, 100)
+        );
+    }
+}
+
+() process_new_bid(int query_id, slice sender_addr, int bid_value, int ton_value, int my_balance) impure inline_ref {
+    if (activated? == false) {
+        throw(exit::not_activated_yet());
+        return ();
+    }
+
+    if (is_broken_state == true) {
+        throw(exit::broken_state());
+        return ();
+    }
+
+    if ((end? == true) | (now() >= end_time)) {
+        throw(exit::auction_end());
+        return ();
+    }
+
+    ;; auction large than 20 days not allowed
+    int duration = end_time - now();
+    throw_if(exit::its_too_long_auc(), duration > 60 * 60 * 24 * 20);
+
+    ;; max bid buy nft
+    if ((bid_value >= max_bid) & (max_bid > 0)) {
+        if (is_jetton_mode == true) {
+            throw_if(exit::low_amount(), ton_value < TON_FOR_END_JETTON_AUC);
+        } else {
+            throw_if(exit::low_amount(), ton_value < (max_bid + TON_FOR_END_TON_AUC));
+        }
+
+        return_last_bid(query_id, sender_addr, my_balance);
+        last_member = sender_addr;
+        last_bid = max_bid;
+        last_bid_at = now();
+        last_query_id = query_id;
+        handle::end_auction(sender_addr, false, query_id);
+        return ();
+    }
+
+    ;; prevent bid at last second
+    if ((end_time - step_time) < now()) {
+        end_time += step_time;
+    }
+
+    ifnot (last_bid) {
+        throw_if(exit::low_bid(), bid_value < min_bid);
+        last_bid = bid_value;
+        last_member = sender_addr;
+        last_bid_at = now();
+        last_query_id = query_id;
+        pack_data();
+        return ();
+    }
+
+    int new_min_bid = get_next_min_bid();
+    if (bid_value < new_min_bid) {
+        throw(exit::low_bid());
+        return ();
+    }
+
+    if (is_jetton_mode == true) {
+        throw_if(exit::low_amount(), ton_value < TON_FOR_JETTON);
+    }
+    return_last_bid(query_id, sender_addr, my_balance);
+
+    last_member = sender_addr;
+    last_bid = bid_value;
+    last_bid_at = now();
+    last_query_id = query_id;
+
+    pack_data();
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_cell, slice in_msg_body) impure {
+    slice cs = in_msg_cell.begin_parse();
+    throw_if(0, cs~load_uint(4) & 1);
+
+    slice sender_addr = cs~load_msg_addr();
+    init_data();
+
+    if (equal_slices(sender_addr, nft_addr)) {
+        if (end? == false) {
+            handle::try_init_auction(sender_addr, in_msg_body);
+        } else {
+            int query_id = in_msg_body~load_uint(64); ;; query id
+            slice old_nft_owner = in_msg_body~load_msg_addr();
+            return_nft(query_id, sender_addr, old_nft_owner);
+        }
+        return ();
+    }
+
+    int op = 0;
+    int query_id = 0;
+    if (slice_empty?(in_msg_body) == false) {
+        op = in_msg_body~load_uint(32);
+        if (op != 0) {
+            query_id = in_msg_body~load_uint(64);
+        }
+    }
+
+
+    if (op == 555) {
+        throw_unless(exit::not_cancel(), ((end? == true) | (activated? == false)));
+        throw_unless(403, equal_slices(sender_addr, mp_addr));
+        ;; way to fix unexpected troubles with auction contract
+        ;; for example if some one transfer nft to this contract
+        var msg = in_msg_body~load_ref().begin_parse();
+        var mode = msg~load_uint(8);
+        throw_if(exit::bad_mode(), mode & 32);
+
+        int ten_min = 10 * 60;
+        throw_if(exit::last_bid_too_close(), (now() > (end_time - ten_min)) & (now() < (end_time + ten_min)));
+        if (last_bid_at != 0) {
+            throw_if(exit::last_bid_too_close(), (now() > (last_bid_at - ten_min)) & (now() < (last_bid_at + ten_min)));
+        }
+
+        send_raw_message(msg~load_ref(), mode);
+        if (end? != true) {
+            end? = true;
+            pack_data();
+        }
+        return ();
+    }
+
+    if (op == op::cancel_acution) {
+        ;; cancel command, return nft if no bid yet
+        throw_if(exit::auction_end(), now() >= end_time); ;; after timeout can't cancel
+        throw_if(exit::auction_end(), end? == true); ;; already canceled/ended
+        throw_if(exit::not_activated_yet(), activated? == false);
+        throw_if(exit::low_amount(), msg_value < TON_FOR_NFT_PROCESS);
+        throw_if(exit::cant_cancel_bid(), last_bid > 0); ;; can't cancel if someone already placed a bid
+        throw_unless(403, equal_slices(sender_addr, nft_owner) | equal_slices(sender_addr, mp_addr));
+        handle::cancel(query_id, sender_addr);
+        return ();
+    }
+
+    if (op == op::finish_acution) {
+        ;; stop auction
+        throw_if(exit::auction_end(), end? == true); ;; end = true mean this action already executed
+        throw_if(exit::not_activated_yet(), activated? == false);
+        int price_for_end = get_price_for_end_auction();
+        throw_if(exit::low_amount(), msg_value < price_for_end);
+        throw_if(exit::cant_stop_time(), now() < end_time); ;; can't end auction in progress, only after end time
+        throw_unless(403, equal_slices(sender_addr, nft_owner) | equal_slices(sender_addr, mp_addr) | equal_slices(sender_addr, last_member));
+        handle::end_auction(sender_addr, false, query_id);
+        return ();
+    }
+
+    if (op == op::deploy_auction) {
+        ;; just accept coins
+        return ();
+    }
+
+    if (op == op::set_jetton_wallet) {
+        throw_if(exit::already_activated(), public_key == 0);
+        throw_if(exit::cant_cancel_bid(), last_bid > 0);
+
+        var signature = in_msg_body~load_bits(512);
+        var payload = slice_hash(in_msg_body);
+        throw_unless(35, check_signature(payload, signature, public_key));
+        ;; check than update from expected address
+        throw_unless(403, equal_slices(sender_addr, jetton_wallet));
+
+        jetton_wallet = in_msg_body~load_msg_addr();
+        in_msg_body.end_parse();
+        var (wc, hash) = parse_std_addr(jetton_wallet);
+        throw_unless(36, wc == 0);
+
+        jt_cell = begin_cell()
+            .store_slice(jetton_wallet)
+            .store_slice(jetton_master)
+            .store_uint(0, 1)
+            .end_cell();
+
+        pack_data();
+        return ();
+    }
+
+    ;; bid process
+
+    if ((op == 0) | (op == op::process_ton_bid)) {
+        throw_unless(exit::wrong_currency(), is_jetton_mode == false);
+        process_new_bid(query_id, sender_addr, msg_value, msg_value, msg_value);
+        return ();
+    }
+
+    if (op == jetton::transfer_notification()) {
+        var (wc, addr_hash) = parse_std_addr(sender_addr);
+
+        ;; check workchain
+        throw_unless(452, wc == 0);
+
+        ;; load amount
+        var jetton_amount = in_msg_body~load_coins();
+        var buyer_address = in_msg_body~load_msg_addr();
+
+        if ((is_jetton_mode == false) | (equal_slices(sender_addr, jetton_wallet) == false)) {
+            send_jettons(sender_addr, exit::wrong_currency(), buyer_address, jetton_amount, buyer_address, -1);
+            return ();
+        }
+
+        try {
+            process_new_bid(query_id, buyer_address, jetton_amount, msg_value, my_balance);
+        }  catch (__, error_code) {
+            send_jettons(sender_addr, error_code, buyer_address, jetton_amount, buyer_address, -1);
+        }
+
+        return ();
+    }
+
+    throw(0xffff);
+}
+
+() recv_external(slice in_msg) impure {
+    init_data();
+
+    int op = in_msg~load_uint(32);
+    int query_id = in_msg~load_uint(64);
+
+    if (op == op::finish_acution) {
+        throw_if(exit::not_activated_yet(), activated? == false);
+        throw_if(exit::auction_end(), end? == true); ;; end = true mean this action already executed
+        throw_if(exit::cant_stop_time(), now() < end_time); ;; can't end auction in progress, only after end time
+        handle::end_auction(nft_owner, true, query_id);
+        return ();
+    }
+
+    throw(0xffff);
+}
+
+(int, int, int, slice, slice, slice, int, slice, int, slice, int, int, slice, int, int, int, int, int, int, int, int, int, slice, slice, int, int) get_auction_data_v4() method_id {
+    init_data();
+
+    var (
+        mp_fee_addr,
+        royalty_fee_addr,
+        mp_fee_factor,
+        mp_fee_base,
+        royalty_fee_factor,
+        royalty_fee_base
+    ) = get_fees_addresses();
+
+    var profitable = math::check_profitable(mp_fee_factor, mp_fee_base, royalty_fee_factor, royalty_fee_base);
+    if (profitable == 0) {
+        is_broken_state = true;
+    }
+
+    if (last_bid > 0) {
+        min_bid = get_next_min_bid();
+    }
+
+    return (
+        activated?, ;;1
+        end?, ;; 2
+        end_time, ;; 3
+        mp_addr, ;; 4
+        nft_addr, ;; 5
+        nft_owner, ;; 6
+        last_bid, ;; 7
+        last_member, ;; 8
+        min_step, ;; 9 min step
+        mp_fee_addr, ;; 10
+        mp_fee_factor, mp_fee_base, ;; 11, 12
+        royalty_fee_addr, ;; 13
+        royalty_fee_factor, royalty_fee_base, ;; 14, 15
+        max_bid, ;; 16
+        min_bid, ;; 17
+        created_at?, ;; 18
+        last_bid_at, ;; 19
+        is_canceled?, ;; 20
+        step_time, ;; 21
+        last_query_id, ;; 22
+        jetton_wallet, ;; 23
+        jetton_master, ;; 24
+        is_broken_state, ;; 25
+        public_key ;; 26
+    );
+}

@@ -25,6 +25,15 @@ getgems is not responsible for users who use it for the purpose of deception. To
 
 ### Actual sale contracts supported by getgems.io
 
+#### [nft-auction-v4r1.func](packages/contracts/sources/nft-auction-v4r1.func)
+- code hash base64(gOPEGdctXBLfAa0sZWRyXD+sMo9ArUMRzU2/e4PFP8U=)
+- code hash hex(80e3c419d72d5c12df01ad2c6564725c3fac328f40ad4311cd4dbf7b83c53fc5)
+- code boc NftAuctionV4R1CodeBoc [NftAuctionV4.source.ts](packages/contracts/nft-auction-v2/NftAuctionV4.source.ts)
+- storage format buildNftAuctionV4R1DataCell [NftAuctionV4R1.data.ts](packages/contracts/nft-auction-v2/NftAuctionV4R1.data.ts)
+- example testnet https://testnet.tonviewer.com/EQB7fZ1iihanCyRYqvHUJfiINJG5OUbuhyGbMeSUgUSqw1gk
+- example mainnet https://tonviewer.com/EQBfi8pXf2WrNsCriLjk2S2WPYlb-L6oTuwtabDOjiDmyl0k
+- contract description (ru): [description-v4-ru.md](packages/contracts/nft-auction-v2/description-v4-ru.md)
+
 #### [nft-fixprice-sale-v4r1.fc](packages/contracts/sources/nft-fixprice-sale-v4r1.fc)
 - code hash base64(a5WmQYucnSNZBF0edVm41UmuDlBvJMqrWPowyPsf64Y=)
 - code hash hex(6B95A6418B9C9D2359045D1E7559B8D549AE0E506F24CAAB58FA30C8FB1FEB86)
