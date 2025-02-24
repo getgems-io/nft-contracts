@@ -17,10 +17,10 @@ This repository is a collection of contracts for TON blockchain used at getgems.
 - marketplaceAddress: EQBYTuYbLf8INxFtD8tQeNk5ZLy-nAX9ahQbG_yl1qQ-GEMS
 
 ### About EQAIFunA...Q-AR
-Любой пользователь может использовать контракт https://tonviewer.com/EQAIFunALREOeQ99syMbO6sSzM_Fa1RsPD5TBoS0qVeKQ-AR для выставления нфт на продажу.
+Не используйте этот контракт https://tonviewer.com/EQAIFunALREOeQ99syMbO6sSzM_Fa1RsPD5TBoS0qVeKQ-AR для выставления нфт на продажу.
 getgems не несет ответственности за пользователей, которые использую его с целью обмана. Для покупки нфт напрямую из блокчейна необходимо проверять код контракта и правильность заполнения данных контракта.
 
-Any user can use the contract https://tonviewer.com/EQAIFunALREOeQ99syMbO6sSzM_Fa1RsPD5TBoS0qVeKQ-AR to put NFTs for sale.
+Do not use https://tonviewer.com/EQAIFunALREOeQ99syMbO6sSzM_Fa1RsPD5TBoS0qVeKQ-AR to put NFTs for sale.
 getgems is not responsible for users who use it for the purpose of deception. To purchase NFT directly from the blockchain, you need to check the contract code and the correctness of the contract data.
 
 ### Actual sale contracts supported by getgems.io
