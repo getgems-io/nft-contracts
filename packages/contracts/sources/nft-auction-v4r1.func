@@ -78,22 +78,11 @@ global slice    nft_addr; ;; nft address
 ;;
 ;;  math utils
 ;;
-
-int division(int a, int b) inline {
-    ;; division with factor
-    return muldiv(a, 1000000000 {- 1e9 -}, b);
-}
-
-int multiply(int a, int b) inline {
-    ;; multiply with factor
-    return muldiv(a, b, 1000000000 {- 1e9 -});
-}
-
 int math::get_percent(int a, int percent, int factor) inline {
     if (factor == 0) {
         return 0;
     } else {
-        return division(multiply(a, percent), factor);
+        return muldiv(a, percent, factor);
     }
 }
 
