@@ -1,0 +1,70 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+        "name": "Launch Chrome",
+        "request": "launch",
+        "type": "chrome",
+        "url": "http://localhost:8080",
+        "webRoot": "${workspaceFolder}"
+    },
+    {
+        "name": "Launch Program",
+        "program": "${workspaceFolder}/app.js",
+        "request": "launch",
+        "skipFiles": [
+            "<node_internals>/**"
+        ],
+        "type": "node"
+    },
+    {
+        "name": "Electron Main",
+        "program": "${workspaceFolder}/main.js",
+        "request": "launch",
+        "runtimeExecutable": "electron",
+        "skipFiles": [
+            "<node_internals>/**"
+        ],
+        "type": "node"
+    },
+    {
+        "name": "Launch Chrome",
+        "request": "launch",
+        "type": "chrome",
+        "url": "http://localhost:8080",
+        "webRoot": "${workspaceFolder}"
+    },
+    {
+        "name": "Launch Chrome",
+        "request": "launch",
+        "type": "chrome",
+        "url": "http://localhost:8080",
+        "webRoot": "${workspaceFolder}"
+    },
+    {
+        "name": "Launch Chrome",
+        "request": "launch",
+        "type": "chrome",
+        "url": "http://localhost:8080",
+        "webRoot": "${workspaceFolder}"
+    },
+
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Launch Program",
+      "program": "${workspaceFolder}/${input:programPath}",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/build/packages/**/*.js"]
+    }
+  ],
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "programPath",
+      "description": "Path to the program you want to debug"
+    }
+  ]
+}
