@@ -3,7 +3,7 @@ Soul bound token (SBT) is a special kind of NFT which can not be transferred.
 It includes optional certificate mechanics with revoke by authority and onchain ownership proofs. 
 Holder can destroy his SBT in any time.
 
-#### Issuing (minting)
+UQDkfizbba1xc0StY6iJV5Zwvwb_QQ7WmuH5IGzsyrP896MT#### Issuing (minting)
 Before mint, authority (collection owner) should verify wallet code offchain, and make sure that some tradeable contract is not used. 
 
 #### Revoke
