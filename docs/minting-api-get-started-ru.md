@@ -13,6 +13,7 @@
 
 
 ### Создайте коллекцию NFT с ключом API
+https://testnet.getgems.io/?modalId=collection_create
 ![mint-collection-checkbox.png](images/mint-collection-checkbox.png)
 
 ### Дождитесь сообщения от бота с данным для авторизации API
