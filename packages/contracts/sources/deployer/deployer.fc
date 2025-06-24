@@ -1,13 +1,11 @@
 ;; DO NOT USE THIS CODE, IT IS DANGEROUS
 ;; Deployer for nft sales
+#include "../stdlib.fc";
 #include "../op-codes.fc";
 
 int op::do_sale() asm "0x0fe0ede PUSHINT";
 
-;; storage scheme
-;; storage#_ owner_address:MsgAddress
-;;           = Storage;
-
+const int op::add_sale_code_hash = "add_sale_code_hash"c;
 
 () recv_internal(int balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
     if (in_msg_body.slice_empty?()) { ;; ignore empty messages
@@ -25,66 +23,92 @@ int op::do_sale() asm "0x0fe0ede PUSHINT";
     int op = in_msg_body~load_uint(32);
 
     if (op == op::ownership_assigned()) { ;; got nft for deploy
-      int query_id = in_msg_body~load_uint(64);
-      var prev_owner = in_msg_body~load_msg_addr();
-      int sub_op = in_msg_body~load_uint(32);
-      throw_if(404, sub_op != op::do_sale());
-      (cell state_init, cell body) = (in_msg_body~load_ref(), in_msg_body~load_ref());
-      in_msg_body.end_parse();
-      int state_init_hash = cell_hash(state_init);
-      slice dest_address = begin_cell().store_int(0, 8).store_uint(state_init_hash, 256).end_cell().begin_parse();
+        int query_id = in_msg_body~load_uint(64);
+        var prev_owner = in_msg_body~load_msg_addr();
+        int sub_op = in_msg_body~load_uint(32);
+        throw_if(404, sub_op != op::do_sale());
+        (cell state_init, cell body) = (in_msg_body~load_ref(), in_msg_body~load_ref());
+        int fwd_amount = slice_empty?(in_msg_body) ? 20000000 : in_msg_body~load_coins();
+        in_msg_body.end_parse();
 
-      var msg = begin_cell()
-        .store_uint(0x18, 6)
-        .store_uint(4, 3).store_slice(dest_address)
-        .store_grams(20000000) ;; 0.02 TON
-        .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
-        .store_ref(state_init)
-        .store_ref(body)
-        .end_cell();
-      send_raw_message(msg, 1); ;; paying fees, revert on errors
+        var sale_state_init_slice = state_init.begin_parse();
+        var sale_code = sale_state_init_slice~load_ref();
+        int sale_code_hash = cell_hash(sale_code);
+        var ds = get_data().begin_parse();
+        var allow_code_hashes = ds~load_dict();
+        (slice v, int is_allow_sale_code) = allow_code_hashes.udict_get?(256, sale_code_hash);
+        throw_unless(4031, is_allow_sale_code);
 
-      var transfer_msg = begin_cell()
-              .store_uint(0x18, 6)
-              .store_slice(sender_address)
-              .store_grams(0)
-              .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
-              .store_uint(op::transfer(), 32)
-              .store_uint(query_id, 64)
-              .store_uint(4, 3).store_slice(dest_address) ;; new owner
-              .store_slice(prev_owner) ;; response_to
-              .store_int(0, 1) ;; no payload
-              .store_grams(0) ;; forward_amount
-              .store_int(0, 1) ;; no body
-              .end_cell();
-      var reserve = balance - msg_value;
-      if (reserve < 1000000) {
-        reserve = 1000000; ;; 0.001 TON
-      } else {
-        reserve += 1000; ;; 0.000001 TON for storage usage
-      }
-      raw_reserve(reserve, 0); ;; reserve some bebras  🐈
-      send_raw_message(transfer_msg, 128); ;; paying fees, revert on errors
+        int state_init_hash = cell_hash(state_init);
+        var msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_uint(1024, 11).store_uint(state_init_hash, 256)
+            .store_grams(fwd_amount)
+            .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
+            .store_ref(state_init)
+            .store_ref(body)
+            .end_cell();
+        send_raw_message(msg, 1); ;; paying fees, revert on errors
 
-      return ();
+        var transfer_msg = begin_cell()
+            .store_uint(0x18, 6)
+            .store_slice(sender_address)
+            .store_uint(0, 4 + 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_uint(op::transfer(), 32)
+            .store_uint(query_id, 64)
+            .store_uint(1024, 11).store_uint(state_init_hash, 256) ;; new owner
+            .store_slice(prev_owner) ;; response_to
+            .store_int(0, 1 + 4 + 1) ;; no payload ;; forward_amount ;; no body
+            .end_cell();
+        var reserve = balance - msg_value;
+        reserve += 100; ;; 0.0000001 TON for storage usage
+        raw_reserve(reserve, 0); ;; reserve some bebras  🐈
+        send_raw_message(transfer_msg, 128); ;; paying fees, revert on errors
+
+        return ();
     }
-;;
+    ;;
     if (op == 1) { ;; accept for deploy
-      return ();
+        return ();
     }
 
     if (op == 555) {
-      var ds = get_data().begin_parse();
-      var owner_address = ds~load_msg_addr();
-      throw_unless(403, equal_slices(owner_address, sender_address));
-      ;; way to fix unexpected troubles with auction contract
-      ;; for example if some one transfer nft to this contract
-      var msg = in_msg_body~load_ref().begin_parse();
-      var mode = msg~load_uint(8);
-      send_raw_message(msg~load_ref(), mode);
-      return ();
+        var ds = get_data().begin_parse();
+        ds~skip_bits(1); ;; dict
+        var owner_address = ds~load_msg_addr();
+        throw_unless(403, equal_slices(owner_address, sender_address));
+        ;; way to fix unexpected troubles with auction contract
+        ;; for example if some one transfer nft to this contract
+        var msg = in_msg_body~load_ref().begin_parse();
+        var mode = msg~load_uint(8);
+        send_raw_message(msg~load_ref(), mode);
+        return ();
+    }
+
+    if (op == op::add_sale_code_hash) {
+        var ds = get_data().begin_parse();
+        var allow_code_hashes = ds~load_dict();
+        var owner_address = ds~load_msg_addr();
+        throw_unless(403, equal_slices(owner_address, sender_address));
+        in_msg_body~skip_bits(64); ;; op code
+        int hash = in_msg_body~load_uint(256);
+        allow_code_hashes = allow_code_hashes.udict_set(256, hash, "");
+
+        set_data(begin_cell()
+            .store_dict(allow_code_hashes)
+            .store_slice(owner_address)
+            .end_cell());
+
+        return ();
     }
 
     throw(0xffff);
+}
+
+(int) is_supported_hash(int code_hash) method_id {
+    var ds = get_data().begin_parse();
+    var allow_code_hashes = ds~load_dict();
+    (slice v, int is_allow_sale_code) = allow_code_hashes.udict_get?(256, code_hash);
+    return is_allow_sale_code;
 }
 

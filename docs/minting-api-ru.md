@@ -1,4 +1,5 @@
 # Минтинг NFT через API getgems
+[English version](minting-api-en.md)
 
 Swagger: https://api.getgems.io/public-api/docs
 
