@@ -11,6 +11,11 @@ API description in Open API format:
 UI https://api.getgems.io/public-api/docs  
 Schema https://api.getgems.io/public-api/docs.json
 
+### Limitations
+
+- no more than 400 requests per 5 minutes from one IP are allowed, if there is a violation, instead of a response, an html page with an error will come
+- this API is temporarily provided at no additional cost, you only pay for the gas required for the blockchain to work. This will be changed in the future
+
 ### Creating an NFT
 
 #### 1) Send a request to create a new NFT
