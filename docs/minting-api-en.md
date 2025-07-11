@@ -7,6 +7,9 @@ To use the API, you need to top up a special wallet — tokens will be deducted 
 The API is available for both [testnet](https://testnet.getgems.io/) and [mainnet](https://getgems.io/) networks.  
 Before using it in production, it is recommended to test the integration in the [testnet environment](https://testnet.getgems.io/).
 
+
+Telegram chat: https://t.me/getgemstech
+
 API description in Open API format:     
 UI https://api.getgems.io/public-api/docs  
 Schema https://api.getgems.io/public-api/docs.json
