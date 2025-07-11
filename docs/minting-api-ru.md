@@ -7,6 +7,8 @@
 API доступно как для [testnet](https://testnet.getgems.io/), так и для [mainnet](https://getgems.io/) сетей. 
 Перед использованием в продакшене рекомендуется проверить интеграцию в [testnet-окружении](https://testnet.getgems.io/).
 
+Чат в телеграм: https://t.me/getgemstech
+
 Описание API в формате Open API:   
 UI https://api.getgems.io/public-api/docs  
 Schema https://api.getgems.io/public-api/docs.json
