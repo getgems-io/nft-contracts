@@ -44,7 +44,7 @@ curl -X 'POST' \
   ]
 }'
 ```
-`requestId` (string, max 64 char) - unique request identifier used to prevent resubmission of the same request. Repeated requests with the same requestId will be ignored.  
+`requestId` (string, max 100 char) - unique request identifier used to prevent resubmission of the same request. Repeated requests with the same requestId will be ignored.  
 `ownerAddress` (string) - NFT owner’s address in UQ... or EQ... format.  
 The other fields belong to the NFT metadata; see the field descriptions in  [metadata.md](ru/metadata.md)
 
