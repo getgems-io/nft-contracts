@@ -12,7 +12,7 @@ API доступно как для [testnet](https://testnet.getgems.io/), та�
 Чат в телеграм: https://t.me/getgemstech
 
 Описание API в формате Open API:   
-UI https://api.getgems.io/public-api/docs  
+UI https://api.getgems.io/public-api/docs  [UI for testnet](https://api.testnet.getgems.io/public-api/docs)    
 Schema https://api.getgems.io/public-api/docs.json
 
 ### Ограничения
