@@ -7,7 +7,7 @@
 API доступно как для [testnet](https://testnet.getgems.io/), так и для [mainnet](https://getgems.io/) сетей. 
 Перед использованием в продакшене рекомендуется проверить интеграцию в [testnet-окружении](https://testnet.getgems.io/).
 
-***Если вам нужно API для получения информации об нфт, воспользуетесь [Read API](https://github.com/getgems-io/nft-contracts/blob/main/docs/read-api-en.md)***
+***Если вам нужно API для получения информации об нфт, воспользуетесь [Read API](https://github.com/getgems-io/nft-contracts/blob/main/docs/read-api-ru.md)***
 
 
 [Как создать API ключ для минтинга?](minting-api-get-started-ru.md)
