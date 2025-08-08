@@ -20,11 +20,18 @@ Schema https://api.getgems.io/public-api/docs.json
 - no more than 400 requests per 5 minutes from one IP are allowed, if there is a violation, instead of a response, an html page with an error will come
 - this API is temporarily provided at no additional cost, you only pay for the gas required for the blockchain to work. This will be changed in the future
 
-### Creating an NFT
+### NFT Creation Process
 
-#### 1) Send a request to create a new NFT
+#### 1) Generate a random requestId (string, up to 100 characters long).
+Each NFT must have a unique requestId. You can use the current time in milliseconds as the requestId value.
 
-Creating one NFT costs ~0.023 TON.
+#### 2) Send a request to create a new NFT
+In the response, you will receive the NFT address and a link to getgems. However, the NFT is not created instantly — the process runs in the background and takes from 6 seconds to several minutes. You can track the NFT creation status via the GET request
+```/public-api/minting/{{collectionAddress}}/{{requestId}}```.
+
+If you receive a timeout error or an error with code 500, you can safely repeat the request with the same requestId.
+
+Creating one NFT costs approximately ~0.023 TON.
 ```bash
 curl -X 'POST' \
   'https://api.testnet.getgems.io/public-api/minting/{{collectionAddress}}' \
