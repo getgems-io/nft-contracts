@@ -1,4 +1,5 @@
 # Getgems API
+[на русском](read-api-ru.md)
 
 This API allows you to retrieve information about NFTs and collections, find NFTs for sale, and generate transactions for purchasing and listing NFTs.
 
