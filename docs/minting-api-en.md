@@ -119,3 +119,19 @@ If the API responds with `"status": "ready"`, the NFT has been created and is av
 
 Example TypeScript script: https://gist.github.com/a-victorovich/d401d38cdbb29a0a5dc41348a9f25b22
 
+## Questions
+
+### cNFT?
+
+Compressed NFTs are a special format of NFT collections that significantly reduce minting costs. The technical documentation is available here:  
+https://docs.ton.org/v3/guidelines/dapps/asset-processing/compressed-nfts  
+https://docs.tonconsole.com/tonconsole/nft/cnft  
+
+cNFTs are recommended if your collection contains more than 50,000 NFTs. You also need to know the addresses of all NFT owners in advance. If it’s not possible to determine all owners’ addresses beforehand, the collection can be minted in parts. Minting each part costs 1 TON. The number of NFTs in a single part is unlimited.  
+
+Before creating a cNFT collection, you must specify the maximum number of NFTs it will contain. This number cannot be changed later, so it is recommended to set it with some reserve. For example, you can specify 100,000 NFTs but mint only 70,000.  
+
+cNFT owners will need to pay about 0.085 TON to convert a cNFT into a regular NFT, after which it can be traded.  
+
+To have your collection fully displayed on Getgems, you need to contact support: https://t.me/nfton_bot. By default, only the first 1,000 NFTs will be shown.
+
