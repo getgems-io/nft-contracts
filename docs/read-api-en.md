@@ -1,7 +1,16 @@
 # Getgems API
 [на русском](read-api-ru.md)
 
-This API allows you to retrieve information about NFTs and collections, find NFTs for sale, and generate transactions for purchasing and listing NFTs.
+With this API you can get:
+- The floor price of an NFT collection (in TONs for the cheapest NFT)
+- The floor price of an NFT collection broken down by attributes
+- A list of NFTs currently listed for sale
+- A list of a user’s NFTs
+- The history of an NFT collection: sales, listings, minting of new NFTs
+- A list of NFTs from a specific collection owned by a user
+- A list of NFTs within a collection
+- Basic information about an NFT collection: name, description, etc.
+- Basic information about an NFT item: name, image, owner, status, whether it is listed for sale
 
 Telegram chat: https://t.me/getgemstech
 
