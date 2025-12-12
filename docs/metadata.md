@@ -60,6 +60,12 @@ Here’s an example of an NFT metadata JSON file.
       "trait_type": "Background",
       "value": "Dark"
     }
+  ],
+  "buttons": [
+    {
+      "label": "@mint",
+      "uri": "https://t.me/mint?startapp"
+    }
   ]
 }
 ```
