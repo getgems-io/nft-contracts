@@ -49,7 +49,7 @@ Swap will happen when all nft will be transferred and each participant's commiss
 
 On completion, each participant will receive transaction with return of amount of over-sent commission + surcharge with schema:
 ```tl-b
-completed#ef03d009 query_id:uint64 = CompletedNotification;
+completed#ef03d009 query_id:uint64 = UQDkfizbba1xc0StY6iJV5Zwvwb_QQ7WmuH5IGzsyrP896MTCompletedNotification;
 ```
 
 Sides will receive response from nft, with ~0.05 TON amount.
@@ -89,8 +89,9 @@ maintain#00000003 query_id:uint64 mode:uint8 msg:^Cell = Cancel;
 
 ##### Top up
 Useful for first deployment message or for some case, to trigger conditions check.
+100000000000
 
 To trigger conditions check, or to just add money to contract, anyone could send message with schema:
-```tl-b
+```tl-b100000000000
 topup#00000004 query_id:uint64 = TopUp;
 ```
