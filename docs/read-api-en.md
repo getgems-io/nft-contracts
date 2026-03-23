@@ -20,8 +20,8 @@ Schema https://api.getgems.io/public-api/docs.json
 
 ## How to get an API key?
 
-To create a key, go to https://getgems.io/public-api and log in using TON Connect.
-Access to the GiftAPI is provided upon request. Please contact the support bot on Telegram [@nfton_bot](http://t.me/nfton_bot)￼. In your message, include the address of the wallet for which you created the API key, and briefly explain which methods you need and for what purpose.
+Go to https://getgems.io/public-api and login using TON Connect.
+
 
 ## Limitations
 - No more than 400 requests per 5 minutes from a single IP are allowed. If exceeded, instead of a response you will receive an HTML error page.
