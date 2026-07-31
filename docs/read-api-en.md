@@ -25,7 +25,7 @@ Go to https://getgems.io/public-api and login using TON Connect.
 
 ## Limitations
 - No more than 400 requests per 5 minutes from a single IP are allowed. If exceeded, instead of a response you will receive an HTML error page.
-- This API is temporarily provided free of charge; you only pay the gas fees required for blockchain operations. This will change in the future.
+- API access costs 10 GRAM per month and can be purchased for one or more months at a time.
 
 ## Request and response examples
 
