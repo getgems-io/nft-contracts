@@ -18,6 +18,8 @@
 UI https://api.getgems.io/public-api/docs  
 Schema https://api.getgems.io/public-api/docs.json
 
+*Основные принципы и подходы по работе с API описаны* [ЗДЕСЬ](https://github.com/getgems-io/nft-contracts/blob/main/docs/how-to-use-api-ru.md)
+
 ## Как получить API ключ?
 
 Перейдите на страницу https://getgems.io/public-api и авторизируйтесь с помощью TON Connect.

@@ -18,6 +18,8 @@ Documentation for all available API methods in Open API format:
 UI https://api.getgems.io/public-api/docs  
 Schema https://api.getgems.io/public-api/docs.json
 
+*The basic principles and approaches for working with the API are described* [HERE](https://github.com/getgems-io/nft-contracts/blob/main/docs/how-to-use-api-en.md)
+
 ## How to get an API key?
 
 Go to https://getgems.io/public-api and login using TON Connect.
