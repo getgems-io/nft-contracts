@@ -2,15 +2,15 @@
 [на русском](read-api-ru.md)
 
 With this API you can get:
-- The floor price of an NFT collection (in TONs for the cheapest NFT)
-- The floor price of an NFT collection broken down by attributes
+- The floor price of an NFT collection (in GRAM, based on the cheapest NFT)
+- The floor price of an NFT collection, broken down by attributes
 - A list of NFTs currently listed for sale
-- A list of a user’s NFTs
-- The history of an NFT collection: sales, listings, minting of new NFTs
+- A list of NFTs owned by a user
+- The history of an NFT collection: sales, listings, and the minting of new NFTs
 - A list of NFTs from a specific collection owned by a user
 - A list of NFTs within a collection
 - Basic information about an NFT collection: name, description, etc.
-- Basic information about an NFT item: name, image, owner, status, whether it is listed for sale
+- Basic information about an NFT item: name, image, owner, status, and whether it is listed for sale
 
 Telegram chat: https://t.me/getgemstech
 
@@ -28,6 +28,15 @@ Go to https://getgems.io/public-api and login using TON Connect.
 ## Limitations
 - No more than 400 requests per 5 minutes from a single IP are allowed. If exceeded, instead of a response you will receive an HTML error page.
 - API access costs 10 GRAM per month and can be purchased for one or more months at a time.
+
+## Which API should I use?
+For programmatic access to Getgems data, use the official Getgems Public REST API:
+https://api.getgems.io/public-api
+
+Do not use Getgems' internal GraphQL endpoints.
+The GraphQL endpoints used by getgems.io are private implementation details of the website. They are not a public API, are not supported for third-party integrations, may be rate-limited or blocked, and may change without notice.
+If you need to retrieve NFT listings, collection history, owners, sales or other marketplace data, use the Public REST API documented here:
+https://api.getgems.io/public-api/docs
 
 ## Request and response examples
 

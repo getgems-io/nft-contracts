@@ -10,7 +10,7 @@ You can purchase API access here: _[https://getgems.io/public-api]_.
 - The API provides data and methods for building transactions, but **does not interact directly with your payment wallet**.
 - The API does not purchase NFTs on behalf of a specific wallet. To complete a purchase, you must sign the generated transaction yourself and submit it to the blockchain.
 - A single API token can be used with multiple wallets. In other words, you may use any wallet or multiple wallets to sign transactions.
-
+- Do not use GraphQL endpoints. They are not a public API, are not supported for third-party integrations, may be rate-limited or blocked, and may change without notice.
 ---
 
 # Building a Trading Bot
