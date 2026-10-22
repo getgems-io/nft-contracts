@@ -6,7 +6,7 @@ You can purchase API access here: _[https://getgems.io/public-api]_.
 
 ## Important Notes
 
-- Do not exceed the limit of **400 requests per 5 minutes**, which is approximately **1 RPS on average**. Higher rate limits are currently not available.
+- Do not exceed the limit of **400 requests per 5 minutes**. Higher rate limits are currently not available.
 - The API provides data and methods for building transactions, but **does not interact directly with your payment wallet**.
 - The API does not purchase NFTs on behalf of a specific wallet. To complete a purchase, you must sign the generated transaction yourself and submit it to the blockchain.
 - A single API token can be used with multiple wallets. In other words, you may use any wallet or multiple wallets to sign transactions.
@@ -327,3 +327,18 @@ The main recommendations for working with the API are:
    ```
 
    In other words, list endpoints are used to obtain the initial state, while history endpoints are used to keep that state up to date.
+
+## Rate limits
+
+The current Read API limit is 400 requests per 5 minutes per client.
+
+Do not try to bypass this limit using multiple IP addresses, API tokens,
+proxies or parallel workers.
+
+For bulk synchronization:
+- request the maximum supported page size;
+- paginate using the returned cursor;
+- store results locally;
+- after the initial synchronization, consume incremental history/update
+  endpoints instead of downloading the entire dataset again;
+- honor HTTP 429 and Retry-After.
